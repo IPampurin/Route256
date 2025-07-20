@@ -91,3 +91,106 @@ Ivan is hungry.
 Sedan is hungry.
 I is serious.
 */
+
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"math"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func main() {
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// определяем количество групп данных
+	scanner.Scan()
+	countGroup, err := strconv.Atoi(scanner.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем ответы по группам
+	for i := 0; i < countGroup; i++ {
+
+		// определяем количество ответов в группе
+		scanner.Scan()
+		countComment, err := strconv.Atoi(scanner.Text())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// ball - мапа для подсчёта очков по группе ответов
+		ball := make(map[string]int)
+		// выполняемое действие в каждой группе
+		action := ""
+
+		// построчно считываем комментарии в группе и подсчитываем баллы
+		for i := 0; i < countComment; i++ {
+
+			scanner.Scan()                                  // считываем строку с ответом
+			line := strings.TrimSuffix(scanner.Text(), "!") // удаляем из неё восклицательный знак
+			brokenLine := strings.Split(line, ": ")         // делим ответ по двоеточию
+			name := brokenLine[0]                           // сохраняем имя отвечающего
+			answer := strings.Split(brokenLine[1], " ")     // сохраняем сам ответ по словам
+
+			// если подозреваемого нет в базе,
+			if _, ok := ball[name]; !ok {
+				ball[name] = 0
+			}
+
+			// определяем действие один раз
+			if i == 0 {
+				action = answer[len(answer)-1]
+			}
+
+			if len(answer) == 4 {
+				if answer[1] == "am" {
+					ball[name]--
+				}
+				if answer[1] == "is" {
+					ball[answer[0]]--
+				}
+			}
+			if len(answer) == 3 {
+				if answer[1] == "am" {
+					ball[name] += 2
+				}
+				if answer[1] == "is" {
+					ball[answer[0]]++
+				}
+			}
+		}
+
+		// определяем максимум по значению в мапе баллов
+		var maxNames []string
+		maxValue := math.MinInt
+
+		for key, val := range ball {
+			if val > maxValue {
+				maxValue = val
+				maxNames = []string{key}
+			} else if val == maxValue {
+				maxNames = append(maxNames, key)
+			}
+		}
+
+		// сортируем имена с максимумом баллов
+		sort.Strings(maxNames)
+
+		// выводим результат по группе
+		for _, v := range maxNames {
+			fmt.Fprintf(out, "%s is %s.\n", v, action)
+		}
+	}
+}
