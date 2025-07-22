@@ -194,3 +194,138 @@ func main() {
 		}
 	}
 }
+
+/*
+Ниже приведён вариант с многопоточкой. Протестировать его не удалось - превышен лимит отправки посылок.
+
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"math"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+)
+
+// Структура для хранения результатов обработки группы
+type GroupResult struct {
+	maxNames []string
+	action   string
+}
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// Читаем количество групп
+	scanner.Scan()
+	countGroup, err := strconv.Atoi(scanner.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Создаем WaitGroup для ожидания завершения всех горутин
+	var wg sync.WaitGroup
+	wg.Add(countGroup)
+
+	// Канал для получения результатов обработки групп
+	results := make(chan GroupResult, countGroup)
+
+	// Читаем все данные заранее
+	allData := make([][]string, countGroup)
+	for i := 0; i < countGroup; i++ {
+		// Читаем количество комментариев в группе
+		scanner.Scan()
+		countComment, _ := strconv.Atoi(scanner.Text())
+
+		// Читаем все строки группы
+		allData[i] = make([]string, countComment)
+		for j := 0; j < countComment; j++ {
+			scanner.Scan()
+			allData[i][j] = scanner.Text()
+		}
+	}
+
+	// Обрабатываем каждую группу в отдельной горутине
+	for i := 0; i < countGroup; i++ {
+		go func(groupData []string) {
+			defer wg.Done()
+
+			ball := make(map[string]int)
+			action := ""
+
+			for _, line := range groupData {
+				line = line[:len(line)-1]
+				brokenLine := strings.Split(line, ": ")
+				name := brokenLine[0]
+				answer := strings.Split(brokenLine[1], " ")
+
+				if _, ok := ball[name]; !ok {
+					ball[name] = 0
+				}
+
+				if action == "" {
+					action = answer[len(answer)-1]
+				}
+
+				if len(answer) == 4 {
+					if answer[1] == "am" {
+						ball[name]--
+					}
+					if answer[1] == "is" {
+						ball[answer[0]]--
+					}
+				}
+				if len(answer) == 3 {
+					if answer[1] == "am" {
+						ball[name] += 2
+					}
+					if answer[1] == "is" {
+						ball[answer[0]]++
+					}
+				}
+			}
+
+			// Находим максимум
+			var maxNames []string
+			maxValue := math.MinInt
+			for key, val := range ball {
+				if val > maxValue {
+					maxValue = val
+					maxNames = []string{key}
+				} else if val == maxValue {
+					maxNames = append(maxNames, key)
+				}
+			}
+
+			sort.Strings(maxNames)
+			results <- GroupResult{
+				maxNames: maxNames,
+				action:   action,
+			}
+		}(allData[i])
+	}
+
+	// Ждем завершения всех горутин
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Выводим результаты по мере их поступления
+	for result := range results {
+		for _, v := range result.maxNames {
+			fmt.Fprintf(out, "%s is %s.\n", v, result.action)
+		}
+	}
+}
+
+*/
