@@ -71,3 +71,122 @@ aaa......
 ....bbbbb
 */
 
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// определяем количество групп входных данных
+	scanner.Scan()
+	countGroup, err := strconv.Atoi(scanner.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем ответы по группам
+	for group := 0; group < countGroup; group++ {
+
+		// определяем размеры склада (n и m)
+		scanner.Scan()
+		nWithm := strings.Split(scanner.Text(), " ")
+		n, err := strconv.Atoi(nWithm[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		m, err := strconv.Atoi(nWithm[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// склад
+		storage := make([][]string, n, n)
+
+		// начальные координаты гоботов
+		var xA, yA, xB, yB int
+
+		// построчно считываем входные данные
+		for i := 0; i < n; i++ {
+
+			storage[i] = make([]string, m, m)
+
+			scanner.Scan() // считываем строку с описанием
+			for j, value := range scanner.Text() {
+				storage[i][j] = string(value)
+				if string(value) == "A" {
+					xA, yA = i, j
+				}
+				if string(value) == "B" {
+					xB, yB = i, j
+				}
+			}
+		}
+
+		var xa, ya, xb, yb int
+
+		if (xA != 0 && yA != 0) && (xB != n && yB != m) || (xB != 0 && yB != 0) && (xA != n && yA != m) { // если А и В уже не находятся в углах
+			if yA < yB { // если А левее В
+
+				if storage[xA-1][yA] == "#" { // если для А столбик сверху
+					ya = yA - 1 // делаем шаг влево
+					xa = xA
+				} else { // если для А нет столбика сверху
+					ya = yA
+					xa = xA - 1 // делаем шаг вверх
+				}
+				// потом двигаемся вверх до упора
+				for i := xa; i >= 0; i-- {
+					storage[i][ya] = "a"
+				}
+				// потом двигаемся влево до упора
+				for i := ya; i >= 0; i-- {
+					storage[0][i] = "a"
+				}
+
+				if storage[xB+1][yB] == "#" { // если для В столбик снизу
+					yb = yB + 1 // делаем шаг вправо
+					xb = xB
+				} else { // если для B нет столбика снизу
+					yb = yB
+					xb = xB + 1 // делаем шаг вниз
+				}
+				// потом двигаемся вниз до упора
+				for i := xb; i < n; i++ {
+					storage[i][yb] = "b"
+				}
+				// потом двигаемся вправо до упора
+				for i := yb; i < m; i++ {
+					storage[n-1][i] = "b"
+				}
+			}
+			if yA == yB { // если А и В посередине
+
+			}
+			if yB < yA { // если В левее А
+
+			}
+		}
+
+		// выводим результат по группе данных
+		for i := 0; i < n; i++ {
+			for j := 0; j < m; j++ {
+				fmt.Fprintf(out, "%s", storage[i][j])
+			}
+			fmt.Fprint(out, "\n")
+		}
+
+	}
+}
