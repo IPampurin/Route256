@@ -82,6 +82,45 @@ import (
 	"strings"
 )
 
+// upRunning описывает движение вверх до упора
+func upRunning(storage [][]string, x, y int, letter string) {
+	for i := x; i >= 0; i-- {
+		storage[i][y] = letter
+	}
+}
+
+// downRunning описывает движение вниз до упора
+func downRunning(storage [][]string, x, y int, letter string) {
+	for i := x; i < len(storage); i++ {
+		storage[i][y] = letter
+	}
+}
+
+// leftRunning описывает движение влево до упора
+func leftRunning(storage [][]string, x, y int, letter string) {
+	for i := y; i >= 0; i-- {
+		storage[x][i] = letter
+	}
+}
+
+// rightRunning описывает движение вправо до упора
+func rightRunning(storage [][]string, x, y int, letter string) {
+	for i := y; i < len(storage[x]); i++ {
+		storage[x][i] = letter
+	}
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, arr [][]string, n, m int) {
+
+	for i := 0; i < n; i++ {
+		for j := 0; j < m; j++ {
+			fmt.Fprintf(out, "%s", arr[i][j])
+		}
+		fmt.Fprint(out, "\n")
+	}
+}
+
 func main() {
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -121,9 +160,10 @@ func main() {
 		// построчно считываем входные данные
 		for i := 0; i < n; i++ {
 
+			// выделяем память для строки
 			storage[i] = make([]string, m, m)
 
-			scanner.Scan() // считываем строку с описанием
+			scanner.Scan() // считываем строку с описанием и запоминаем начальные координаты роботов
 			for j, value := range scanner.Text() {
 				storage[i][j] = string(value)
 				if string(value) == "A" {
@@ -135,120 +175,91 @@ func main() {
 			}
 		}
 
-		// если А в верхнем левом углу и В в нижнем правом углу
-		if (xA == 0 && yA == 0) && (xB == n-1 && yB == m-1) {
-			outputing(out, storage, n, m)
-			continue
-		}
-		// если B в верхнем левом углу и A в нижнем правом углу
-		if (xA == n-1 && yA == m-1) && (xB == 0 && yB == 0) {
-			outputing(out, storage, n, m)
-			continue
-		}
-
+		// координаты для обозначения пути
 		var xa, ya, xb, yb int
 
-		if yA < yB { // если А левее В
-			if yA%2 != 0 || xA == 0 { // если для А столбик сверху (или снизу) или А в верхней строке
-				ya = yA - 1 // делаем шаг влево
+		switch {
+		case yA < yB || (yA == yB && xA < xB): // если А левее или выше В, то гоним А в верхний левый угол, а В - в нижний правый
+
+			if yA%2 != 0 || xA == 0 { // если для А столбик сверху или А в верхней строке
+				ya = yA - 1 // предполагаем шаг влево
 				xa = xA
-			} else { // если для А нет столбика сверху и А не в верхней строке
+			} else { // если для А нет столбика сверху и A не в верхней строке
 				ya = yA
-				xa = xA - 1 // делаем шаг вверх
+				xa = xA - 1 // предполагаем шаг вверх
 			}
 
-			upRunning(storage, xa, ya, "a")
+			// движение вверх имеет смысл, если А изначально не на верхней строке
+			if xA != 0 {
+				upRunning(storage, xa, ya, "a")
+			}
 
-			xa = 0
-			leftRunning(storage, xa, ya, "a")
+			// движение влево имеет смысл, если А изначально не в левом столбце
+			if yA != 0 {
+				xa = 0
+				leftRunning(storage, xa, ya, "a")
+			}
 
-			if yB%2 != 0 || xB == n-1 { // если для В столбик снизу (или сверху) или B в нижней строке
-				yb = yB + 1 // делаем шаг вправо
+			if yB%2 != 0 || xB == n-1 { // если для В столбик снизу или B в нижней строке
+				yb = yB + 1 // предполагаем шаг вправо
 				xb = xB
 			} else { // если для B нет столбика снизу и В не в нижней строке
 				yb = yB
-				xb = xB + 1 // делаем шаг вниз
+				xb = xB + 1 // предполагаем шаг вниз
 			}
 
-			downRunning(storage, xb, yb, "b")
+			// движение вниз имеет смысл, если В изначально не в нижней строке
+			if xB != n-1 {
+				downRunning(storage, xb, yb, "b")
+			}
 
-			xb = len(storage) - 1
-			rightRunning(storage, xb, yb, "b")
-		}
+			// движение вправо имеет смысл, если В изначально не в правом столбце
+			if yB != m-1 {
+				xb = n - 1
+				rightRunning(storage, xb, yb, "b")
+			}
 
-		if yA == yB { // если А и В посередине
+		case yB < yA || (yB == yA && xB < xA): // если В левее или выше А, то гоним В в верхний левый угол, а А - в нижний правый
 
-		}
-
-		if yB < yA { // если В левее А
-
-			if yB%2 != 0 || xB == 0 { // если для B столбик сверху (или снизу) или B в верхней строке
-				yb = yB - 1 // делаем шаг влево
+			if yB%2 != 0 || xB == 0 { // если для B столбик сверху или B в верхней строке
+				yb = yB - 1 // предполагаем шаг влево
 				xb = xB
 			} else { // если для B нет столбика сверху и B не в верхней строке
 				yb = yB
-				xb = xB - 1 // делаем шаг вверх
+				xb = xB - 1 // предполагаем шаг вверх
 			}
 
-			upRunning(storage, xb, yb, "b")
+			// движение вверх имеет смысл, если В изначально не на верхней строке
+			if xB != 0 {
+				upRunning(storage, xb, yb, "b")
+			}
 
-			xb = 0
-			leftRunning(storage, xb, yb, "b")
+			// движение влево имеет смысл, если В изначально не в левом столбце
+			if yB != 0 {
+				xb = 0
+				leftRunning(storage, xb, yb, "b")
+			}
 
-			if yA%2 != 0 || xA == n-1 { // если для A столбик снизу (или сверху) или A в нижней строке
-				ya = yA + 1 // делаем шаг вправо
+			if yA%2 != 0 || xA == n-1 { // если для A столбик снизу или A в нижней строке
+				ya = yA + 1 // предполагаем шаг вправо
 				xa = xA
 			} else { // если для A нет столбика снизу и A не в нижней строке
 				ya = yA
-				xa = xA + 1 // делаем шаг вниз
+				xa = xA + 1 // предполагаем шаг вниз
 			}
 
-			downRunning(storage, xa, ya, "a")
+			// движение вниз имеет смысл, если А изначально не в нижней строке
+			if xA != n-1 {
+				downRunning(storage, xa, ya, "a")
+			}
 
-			xa = len(storage) - 1
-			rightRunning(storage, xa, ya, "a")
+			// движение вправо имеет смысл, если A изначально не в правом столбце
+			if yA != m-1 {
+				xa = n - 1
+				rightRunning(storage, xa, ya, "a")
+			}
 		}
-
 		// выводим результат по группе данных
 		outputing(out, storage, n, m)
-	}
-}
-
-// upRunning описывает движение вверх до упора
-func upRunning(storage [][]string, x, y int, letter string) {
-	for i := x; i >= 0; i-- {
-		storage[i][y] = letter
-	}
-}
-
-// downRunning описывает движение вниз до упора
-func downRunning(storage [][]string, x, y int, letter string) {
-	for i := x; i < len(storage); i++ {
-		storage[i][y] = letter
-	}
-}
-
-// leftRunning описывает движение влево до упора
-func leftRunning(storage [][]string, x, y int, letter string) {
-	for i := y; i >= 0; i-- {
-		storage[x][i] = letter
-	}
-}
-
-// rightRunning описывает движение вправо до упора
-func rightRunning(storage [][]string, x, y int, letter string) {
-	for i := y; i < len(storage[x]); i++ {
-		storage[x][i] = letter
-	}
-}
-
-// outputing выводит результат
-func outputing(out *bufio.Writer, arr [][]string, n, m int) {
-
-	for i := 0; i < n; i++ {
-		for j := 0; j < m; j++ {
-			fmt.Fprintf(out, "%s", arr[i][j])
-		}
-		fmt.Fprint(out, "\n")
 	}
 }
