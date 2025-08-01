@@ -84,3 +84,106 @@ x-й строке и y-м столбце является частью горы,
 //\\\
 
 */
+
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, arr [][]string, n, m int) {
+
+	for i := 0; i < n; i++ {
+		for j := 0; j < m; j++ {
+			fmt.Fprintf(out, "%s", arr[i][j])
+		}
+		fmt.Fprint(out, "\n")
+	}
+}
+
+// initBackground пишет фон арта
+func initBackground(n, m int) [][]string {
+
+	back := make([][]string, n, n)
+	for i := 0; i < n; i++ {
+		back[i] = make([]string, m, m)
+		for j := 0; j < m; j++ {
+			back[i][j] = "."
+		}
+	}
+
+	return back
+}
+
+func main() {
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// определяем количество групп входных данных
+	scanner.Scan()
+	t, err := strconv.Atoi(scanner.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем ответы по группам
+	for group := 1; group <= t; group++ {
+
+		// определяем размеры арта (n и m)
+		scanner.Scan()
+		reliefNM := strings.Split(scanner.Text(), " ")
+		relief, err := strconv.Atoi(reliefNM[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		n, err := strconv.Atoi(reliefNM[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		m, err := strconv.Atoi(reliefNM[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+		/*
+			// зануляем background - фон картинки
+			background := make([][]string, 0)
+		*/
+		// заполняем фон картинки
+		background := initBackground(n, m)
+
+		// для каждого рельефа по порядку
+		for r := 1; r <= relief; r++ {
+
+			// построчно считываем входные данные
+			for i := 0; i < n; i++ {
+				// считываем строку с описанием и переписываем элементы background, если это необходимо
+				scanner.Scan()
+				for j, value := range scanner.Text() {
+					if background[i][j] == "." {
+						background[i][j] = string(value)
+					}
+				}
+			}
+
+			// после вычитывания очередного рельефа пропускаем строку, если рельеф не крайний
+			if r < relief {
+				scanner.Scan()
+			}
+		}
+
+		// выводим результат по группе данных
+		outputing(out, background, n, m)
+		// пропускаем строку между выводом по группам
+		fmt.Fprint(out, "\n")
+	}
+}
