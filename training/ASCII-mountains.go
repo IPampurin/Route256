@@ -139,7 +139,7 @@ func main() {
 	// считываем ответы по группам
 	for group := 1; group <= t; group++ {
 
-		// определяем размеры арта (n и m)
+		// определяем размеры арта (k, n, m)
 		scanner.Scan()
 		reliefNM := strings.Split(scanner.Text(), " ")
 		relief, err := strconv.Atoi(reliefNM[0])
@@ -154,10 +154,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		/*
-			// зануляем background - фон картинки
-			background := make([][]string, 0)
-		*/
+
 		// заполняем фон картинки
 		background := initBackground(n, m)
 
