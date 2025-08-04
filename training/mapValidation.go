@@ -43,3 +43,172 @@ NO
 YES
 */
 
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// Hexagon описывает ячейку карты
+type Hexagon struct {
+	DotOrColor string // значение в ячейке
+	Mark       bool   // отметка о посещении
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, mes string) {
+
+	fmt.Fprintf(out, "%s\n", mes)
+}
+
+func main() {
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// определяем количество групп входных данных
+	scanner.Scan()
+	t, err := strconv.Atoi(scanner.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем ответы по группам
+	for group := 1; group <= t; group++ {
+
+		// определяем размеры карты (n, m)
+		scanner.Scan()
+		nWithm := strings.Split(scanner.Text(), " ")
+
+		n, err := strconv.Atoi(nWithm[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		m, err := strconv.Atoi(nWithm[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// field это карта
+		field := make([][]Hexagon, n, n)
+		// colorCounter мапа для подсчёта ячеек с одним цветом
+		colorCounter := make(map[string]int)
+		// linkCounter мапа для подсчёта связей между ячейками одного цвета
+		linkCounter := make(map[string]int)
+
+		mes := "YES" // итоговое сообщение
+
+		// построчно считываем входные данные
+		for i := 0; i < n; i++ {
+			field[i] = make([]Hexagon, m, m)
+			// считываем строку с описанием
+			scanner.Scan()
+			for j, value := range scanner.Text() {
+				// записываем поле структуры с цветом или точкой
+				field[i][j].DotOrColor = string(value)
+				// если попадается точка, то уходим за следующим элементом
+				if field[i][j].DotOrColor == "." {
+					continue
+				}
+				key := field[i][j].DotOrColor // переназовём для удобства
+				// исходя из условий доступности в карте проверяем количество одноцветных связей и увеличиваем счётчики
+				if i == 0 && j == 0 {
+					if _, ok := colorCounter[key]; !ok {
+						colorCounter[key] = 1
+						linkCounter[key] = 1
+					}
+				}
+
+				if i == 0 && 1 < j {
+					if _, ok := colorCounter[key]; !ok {
+						colorCounter[key] = 1
+						linkCounter[key] = 1
+					} else {
+						colorCounter[key]++
+						if field[i][j].DotOrColor == field[i][j-2].DotOrColor && field[i][j-2].Mark == false {
+							linkCounter[key]++
+							field[i][j-2].Mark = true
+						}
+					}
+				}
+
+				if 0 < i && i%2 != 0 {
+					if _, ok := colorCounter[key]; !ok {
+						colorCounter[key] = 1
+						linkCounter[key] = 1
+					} else {
+						colorCounter[key]++
+						if 0 < j && j < m-1 {
+							if field[i][j].DotOrColor == field[i-1][j-1].DotOrColor && field[i-1][j-1].Mark == false {
+								linkCounter[key]++
+								field[i-1][j-1].Mark = true
+							}
+							if field[i][j].DotOrColor == field[i-1][j+1].DotOrColor && field[i-1][j+1].Mark == false {
+								linkCounter[key]++
+								field[i-1][j+1].Mark = true
+							}
+						}
+						if 1 < j {
+							if field[i][j].DotOrColor == field[i][j-2].DotOrColor && field[i][j-2].Mark == false {
+								linkCounter[key]++
+								field[i][j-2].Mark = true
+							}
+						}
+						if j == m-1 {
+							if field[i][j].DotOrColor == field[i-1][j-1].DotOrColor && field[i-1][j-1].Mark == false {
+								linkCounter[key]++
+								field[i-1][j-1].Mark = true
+							}
+						}
+					}
+				}
+
+				if 0 < i && i%2 == 0 {
+					if _, ok := colorCounter[key]; !ok {
+						colorCounter[key] = 1
+						linkCounter[key] = 1
+					} else {
+						colorCounter[key]++
+						if j != m-1 {
+							if field[i][j].DotOrColor == field[i-1][j+1].DotOrColor && field[i-1][j+1].Mark == false {
+								linkCounter[key]++
+								field[i-1][j+1].Mark = true
+							}
+						}
+						if 1 < j {
+							if field[i][j].DotOrColor == field[i-1][j-1].DotOrColor && field[i-1][j-1].Mark == false {
+								linkCounter[key]++
+								field[i-1][j-1].Mark = true
+							}
+							if field[i][j].DotOrColor == field[i][j-2].DotOrColor && field[i][j-2].Mark == false {
+								linkCounter[key]++
+								field[i][j-2].Mark = true
+							}
+						}
+					}
+				}
+			}
+			// как же я ненавижу эти ступенчатые условия
+		}
+
+		// если количество ячеек одного цвета не равно количеству связей между ячейками одного цвета,
+		// значит какие-то ячейки оторваны от коллектива
+		for key, value := range colorCounter {
+			if linkCounter[key] != value {
+				mes = "NO"
+				break
+			}
+		}
+
+		// выводим результат по группе данных
+		outputing(out, mes)
+	}
+}
