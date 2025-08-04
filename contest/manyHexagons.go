@@ -56,3 +56,203 @@ height – количество прямых «/» или обратных «\»
 |                              |
 +------------------------------+
 */
+
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// inputing считывает введённые данные
+func inputing(sc *bufio.Scanner) (int, int, int, int, int) {
+
+	// считываем ввод
+	sc.Scan()
+	input := strings.Split(sc.Text(), " ")
+	// парсим входные данные
+	// экран в ширину
+	m, err := strconv.Atoi(input[0])
+
+	// экран в высоту
+	n, err := strconv.Atoi(input[1])
+
+	// основание шестиугольника
+	width, err := strconv.Atoi(input[2])
+
+	// полувысота шестиугольника
+	height, err := strconv.Atoi(input[3])
+
+	// общее количество шестиугольников
+	k, err := strconv.Atoi(input[4])
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return m, n, width, height, k
+}
+
+// initDisplay инициирует начальный экран с рамкой
+func initDisplay(n, m int) [][]string {
+
+	// задаём массив по размерам экрана с рамкой
+	display := make([][]string, n+2, n+2)
+	// рисуем рамку
+	for i := 0; i < n+2; i++ {
+		display[i] = make([]string, m+2, m+2)
+		for j := 0; j < m+2; j++ {
+			// если по углам экрана
+			if (i == 0 && j == 0) || (i == 0 && j == len(display[i])-1) || (i == len(display)-1 && j == 0) || (i == len(display)-1 && j == len(display[i])-1) {
+				display[i][j] = `+`
+			}
+			// если в верхней или нижней строке
+			if (i == 0 && 0 < j && j < len(display[i])-1) || (i == len(display)-1 && 0 < j && j < len(display[i])-1) {
+				display[i][j] = `-`
+			}
+			// если в центральной части экрана
+			if 0 < i && i < len(display)-1 && 0 < j && j < len(display[i])-1 {
+				display[i][j] = ` `
+			}
+			// если в крайних столбцах
+			if (0 < i && i < len(display)-1 && j == 0) || (0 < i && i < len(display)-1 && j == len(display[i])-1) {
+				display[i][j] = `|`
+			}
+		}
+	}
+
+	return display
+}
+
+func initField(n, m int) [][]string {
+
+	// задаём массив по размеру поля для одного шестиугольника
+	art := make([][]string, n, n)
+	// заполняем массив пробелами
+	for i := 0; i < n; i++ {
+		art[i] = make([]string, m, m)
+		for j := 0; j < m; j++ {
+			art[i][j] = ` `
+		}
+	}
+
+	return art
+}
+
+// completeHexField рисует один шестиугольник на минимальном поле
+func completeHexField(hexField [][]string, width, height, nField, mField int) {
+
+	prefix := height + 1
+
+	for i := 0; i < len(hexField); i++ {
+		if i <= nField/2 {
+			prefix--
+		}
+		if i > nField/2 {
+			prefix++
+		}
+		for j := 0; j < len(hexField[i]); j++ {
+			if i == 0 && j < prefix {
+				hexField[i][j] = ` `
+			}
+			if i == 0 && prefix <= j && j <= mField-1-prefix {
+				hexField[i][j] = `_`
+			}
+			if 0 < i && i <= nField/2 {
+				if j < prefix {
+					hexField[i][j] = ` `
+				}
+				if j == prefix {
+					hexField[i][j] = `/`
+				}
+				if prefix < j && j < mField-1-prefix {
+					hexField[i][j] = ` `
+				}
+				if j == mField-1-prefix {
+					hexField[i][j] = `\`
+				}
+			}
+			if i > nField/2 {
+				if j < prefix-1 {
+					hexField[i][j] = ` `
+				}
+				if j == prefix-1 {
+					hexField[i][j] = `\`
+				}
+				if prefix-1 < j && j < mField-prefix {
+					hexField[i][j] = ` `
+				}
+				if j == mField-prefix {
+					hexField[i][j] = `/`
+				}
+				if i == len(hexField)-1 && j < prefix-1 {
+					hexField[i][j] = ` `
+				}
+				if i == len(hexField)-1 && prefix-1 < j && j < mField-prefix {
+					hexField[i][j] = `_`
+				}
+			}
+		}
+	}
+}
+
+// completeDisplay рисует на экране шестиугольник с заданными координатами
+func completeDisplay(displey, hexField [][]string, x, y int) {
+
+	for i := 0; i < len(hexField); i++ {
+		for j := 0; j < len(hexField[i]); j++ {
+			if hexField[i][j] != " " {
+				displey[i+x][j+y] = hexField[i][j]
+			}
+		}
+	}
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, arr [][]string) {
+
+	for i := 0; i < len(arr); i++ {
+		for j := 0; j < len(arr[i]); j++ {
+			fmt.Fprintf(out, "%s", arr[i][j])
+		}
+		fmt.Fprint(out, "\n")
+	}
+}
+
+func main() {
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	// определяем входные данные
+	m, n, width, height, _ := inputing(scanner)
+
+	// определяем экран с рамкой
+	displey := initDisplay(n, m)
+
+	// подсчитываем размеры поля под один шестиугольник
+	nField := 2*height + 1
+	mField := 2*height + width
+
+	// инициализируем поле под один шестиугольник
+	hexField := initField(nField, mField)
+	// и рисуем на единичном поле один шестиугольник
+	completeHexField(hexField, width, height, nField, mField)
+
+	// начальные координаты для отрисовки шестиугольника согласно условиям задачи
+	x := 1
+	y := 1
+
+	// completeStartingPoints
+
+	completeDisplay(displey, hexField, x, y)
+
+	outputing(out, displey)
+}
