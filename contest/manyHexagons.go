@@ -128,33 +128,27 @@ func initDisplay(n, m int) [][]string {
 	return display
 }
 
-func initField(n, m int) [][]string {
-
-	// задаём массив по размеру поля для одного шестиугольника
-	art := make([][]string, n, n)
-	// заполняем массив пробелами
-	for i := 0; i < n; i++ {
-		art[i] = make([]string, m, m)
-		for j := 0; j < m; j++ {
-			art[i][j] = ` `
-		}
-	}
-
-	return art
-}
-
 // completeHexField рисует один шестиугольник на минимальном поле
-func completeHexField(hexField [][]string, width, height, nField, mField int) {
+func completeHexField(width, height, nField, mField int) [][]string {
 
+	// hexField поле, в рамках которого рисуется один шестиугольник
+	hexField := make([][]string, nField, nField)
+
+	// prefix отступ от левой и правой границ поля hexField
 	prefix := height + 1
 
+	// заполняем массив hexField символами так, чтобы получился шестиугольник
 	for i := 0; i < len(hexField); i++ {
+
+		hexField[i] = make([]string, mField, mField)
+
 		if i <= nField/2 {
 			prefix--
 		}
 		if i > nField/2 {
 			prefix++
 		}
+
 		for j := 0; j < len(hexField[i]); j++ {
 			if i == 0 && j < prefix {
 				hexField[i][j] = ` `
@@ -196,11 +190,52 @@ func completeHexField(hexField [][]string, width, height, nField, mField int) {
 					hexField[i][j] = `_`
 				}
 			}
+			if hexField[i][j] == `` {
+				hexField[i][j] = ` `
+			}
 		}
 	}
+
+	return hexField
 }
 
-// completeDisplay рисует на экране шестиугольник с заданными координатами
+// completeStartingPoints создаёт массив такого же размера как и display и отмечает точки с которых надо рисовать шестиугольники
+func completeStartingPoints(n, m, width, height int) [][]string {
+
+	// x и y начальная точка согласно условия задачи
+	x := 1
+	y := 1
+
+	// определим шаг расстановки шестиугольников по вертикали в нечётных столбцах
+	deltaXone := 2 * height
+	// определим шаг расстановки шестиугольников по вертикали в чётных столбцах
+	deltaXtwo := height
+	// определим шаг расстановки шестиугольников по горизонтали в нечётных рядах
+	deltaYone := 2 * (height + width)
+	// определим шаг расстановки шестиугольников по горизонтали в чётных рядах
+	deltaYtwo := height + width
+
+	// startingPoints массив с отметками начальных точек для отрисовки шестиугольников
+	startingPoints := make([][]string, n+2, n+2)
+
+	for i := 0; i < n+2; i++ {
+		startingPoints[i] = make([]string, m+2, m+2)
+		y = 1
+		for j := 0; j < m+2; j++ {
+			if i == x && j == y {
+				startingPoints[i][j] = `*` // отмечаем нужные ячейки, например, символом "*"
+			}
+			if len(startingPoints[i])-(y+2*(height+width)) > 2*height+width {
+				y += 2 * (height + width)
+			}
+		}
+
+	}
+
+	return startingPoints
+}
+
+// completeDisplay рисует на экране (определённом в initDisplay) шестиугольник с заданными координатами
 func completeDisplay(displey, hexField [][]string, x, y int) {
 
 	for i := 0; i < len(hexField); i++ {
@@ -241,16 +276,14 @@ func main() {
 	nField := 2*height + 1
 	mField := 2*height + width
 
-	// инициализируем поле под один шестиугольник
-	hexField := initField(nField, mField)
-	// и рисуем на единичном поле один шестиугольник
-	completeHexField(hexField, width, height, nField, mField)
+	// рисуем на единичном поле один шестиугольник
+	hexField := completeHexField(width, height, nField, mField)
 
 	// начальные координаты для отрисовки шестиугольника согласно условиям задачи
 	x := 1
 	y := 1
 
-	// completeStartingPoints
+	startingPoints := completeStartingPoints(n, m, width, height)
 
 	completeDisplay(displey, hexField, x, y)
 
