@@ -206,10 +206,8 @@ func completeStartingPoints(n, m, width, height int) [][]string {
 	x := 1
 	y := 1
 
-	// определим шаг расстановки шестиугольников по вертикали в нечётных столбцах
-	deltaXone := 2 * height
-	// определим шаг расстановки шестиугольников по вертикали в чётных столбцах
-	deltaXtwo := height
+	// определим шаг расстановки шестиугольников по вертикали
+	deltaX := height
 	// определим шаг расстановки шестиугольников по горизонтали в нечётных рядах
 	deltaYone := 2 * (height + width)
 	// определим шаг расстановки шестиугольников по горизонтали в чётных рядах
@@ -218,18 +216,19 @@ func completeStartingPoints(n, m, width, height int) [][]string {
 	// startingPoints массив с отметками начальных точек для отрисовки шестиугольников
 	startingPoints := make([][]string, n+2, n+2)
 
-	for i := 0; i < n+2; i++ {
-		startingPoints[i] = make([]string, m+2, m+2)
-		y = 1
-		for j := 0; j < m+2; j++ {
-			if i == x && j == y {
-				startingPoints[i][j] = `*` // отмечаем нужные ячейки, например, символом "*"
-			}
-			if len(startingPoints[i])-(y+2*(height+width)) > 2*height+width {
-				y += 2 * (height + width)
-			}
+	var delta int
+	flag := 0
+	for i := x; i < len(startingPoints); i += deltaX {
+		startingPoints[i] = make([]string, m, m)
+		flag++
+		if flag%2 != 0 {
+			delta = deltaYtwo
+		} else {
+			delta = deltaYone
 		}
-
+		for j := y; j < len(startingPoints[i]); j += delta {
+			startingPoints[i][j] = `*`
+		}
 	}
 
 	return startingPoints
