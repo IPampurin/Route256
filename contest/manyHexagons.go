@@ -68,6 +68,9 @@ import (
 	"strings"
 )
 
+var HexField [][]string
+var Display [][]string
+
 // inputing считывает введённые данные
 func inputing(sc *bufio.Scanner) (int, int, int, int, int) {
 
@@ -97,50 +100,23 @@ func inputing(sc *bufio.Scanner) (int, int, int, int, int) {
 	return m, n, width, height, k
 }
 
-// initDisplay инициирует начальный экран с рамкой
-func initDisplay(n, m int) [][]string {
-
-	// задаём массив по размерам экрана с рамкой
-	display := make([][]string, n+2, n+2)
-	// рисуем рамку
-	for i := 0; i < n+2; i++ {
-		display[i] = make([]string, m+2, m+2)
-		for j := 0; j < m+2; j++ {
-			// если по углам экрана
-			if (i == 0 && j == 0) || (i == 0 && j == len(display[i])-1) || (i == len(display)-1 && j == 0) || (i == len(display)-1 && j == len(display[i])-1) {
-				display[i][j] = `+`
-			}
-			// если в верхней или нижней строке
-			if (i == 0 && 0 < j && j < len(display[i])-1) || (i == len(display)-1 && 0 < j && j < len(display[i])-1) {
-				display[i][j] = `-`
-			}
-			// если в центральной части экрана
-			if 0 < i && i < len(display)-1 && 0 < j && j < len(display[i])-1 {
-				display[i][j] = ` `
-			}
-			// если в крайних столбцах
-			if (0 < i && i < len(display)-1 && j == 0) || (0 < i && i < len(display)-1 && j == len(display[i])-1) {
-				display[i][j] = `|`
-			}
-		}
-	}
-
-	return display
-}
-
 // completeHexField рисует один шестиугольник на минимальном поле
-func completeHexField(width, height, nField, mField int) [][]string {
+func completeHexField(width, height int) {
 
-	// hexField поле, в рамках которого рисуется один шестиугольник
-	hexField := make([][]string, nField, nField)
+	// подсчитываем размеры поля под один шестиугольник
+	nField := 2*height + 1
+	mField := 2*height + width
+
+	// HexField поле, в рамках которого рисуется один шестиугольник
+	HexField = make([][]string, nField, nField)
 
 	// prefix отступ от левой и правой границ поля hexField
 	prefix := height + 1
 
 	// заполняем массив hexField символами так, чтобы получился шестиугольник
-	for i := 0; i < len(hexField); i++ {
+	for i := 0; i < len(HexField); i++ {
 
-		hexField[i] = make([]string, mField, mField)
+		HexField[i] = make([]string, mField, mField)
 
 		if i <= nField/2 {
 			prefix--
@@ -149,60 +125,83 @@ func completeHexField(width, height, nField, mField int) [][]string {
 			prefix++
 		}
 
-		for j := 0; j < len(hexField[i]); j++ {
+		for j := 0; j < len(HexField[i]); j++ {
 			if i == 0 && j < prefix {
-				hexField[i][j] = ` `
+				HexField[i][j] = ` `
 			}
 			if i == 0 && prefix <= j && j <= mField-1-prefix {
-				hexField[i][j] = `_`
+				HexField[i][j] = `_`
 			}
 			if 0 < i && i <= nField/2 {
 				if j < prefix {
-					hexField[i][j] = ` `
+					HexField[i][j] = ` `
 				}
 				if j == prefix {
-					hexField[i][j] = `/`
+					HexField[i][j] = `/`
 				}
 				if prefix < j && j < mField-1-prefix {
-					hexField[i][j] = ` `
+					HexField[i][j] = ` `
 				}
 				if j == mField-1-prefix {
-					hexField[i][j] = `\`
+					HexField[i][j] = `\`
 				}
 			}
 			if i > nField/2 {
 				if j < prefix-1 {
-					hexField[i][j] = ` `
+					HexField[i][j] = ` `
 				}
 				if j == prefix-1 {
-					hexField[i][j] = `\`
+					HexField[i][j] = `\`
 				}
 				if prefix-1 < j && j < mField-prefix {
-					hexField[i][j] = ` `
+					HexField[i][j] = ` `
 				}
 				if j == mField-prefix {
-					hexField[i][j] = `/`
+					HexField[i][j] = `/`
 				}
-				if i == len(hexField)-1 && j < prefix-1 {
-					hexField[i][j] = ` `
+				if i == len(HexField)-1 && j < prefix-1 {
+					HexField[i][j] = ` `
 				}
-				if i == len(hexField)-1 && prefix-1 < j && j < mField-prefix {
-					hexField[i][j] = `_`
+				if i == len(HexField)-1 && prefix-1 < j && j < mField-prefix {
+					HexField[i][j] = `_`
 				}
 			}
-			if hexField[i][j] == `` {
-				hexField[i][j] = ` `
+			if HexField[i][j] == `` {
+				HexField[i][j] = ` `
+			}
+		}
+	}
+}
+
+// completeDisplay инициирует начальный экран с рамкой
+func completeDisplay(n, m, width, height, k int) {
+
+	// задаём массив по размерам экрана с рамкой
+	Display = make([][]string, n+2, n+2)
+	// рисуем рамку
+	for i := 0; i < n+2; i++ {
+		Display[i] = make([]string, m+2, m+2)
+		for j := 0; j < m+2; j++ {
+			// если по углам экрана
+			if (i == 0 && j == 0) || (i == 0 && j == len(Display[i])-1) || (i == len(Display)-1 && j == 0) || (i == len(Display)-1 && j == len(Display[i])-1) {
+				Display[i][j] = `+`
+			}
+			// если в верхней или нижней строке
+			if (i == 0 && 0 < j && j < len(Display[i])-1) || (i == len(Display)-1 && 0 < j && j < len(Display[i])-1) {
+				Display[i][j] = `-`
+			}
+			// если в центральной части экрана
+			if 0 < i && i < len(Display)-1 && 0 < j && j < len(Display[i])-1 {
+				Display[i][j] = ` `
+			}
+			// если в крайних столбцах
+			if (0 < i && i < len(Display)-1 && j == 0) || (0 < i && i < len(Display)-1 && j == len(Display[i])-1) {
+				Display[i][j] = `|`
 			}
 		}
 	}
 
-	return hexField
-}
-
-// completeStartingPoints создаёт массив такого же размера как и display и отмечает точки с которых надо рисовать шестиугольники
-func completeStartingPoints(n, m, width, height int) [][]string {
-
-	// x и y начальная точка согласно условия задачи
+	// начальные координаты для отрисовки шестиугольника согласно условиям задачи
 	x := 1
 	y := 1
 
@@ -213,34 +212,31 @@ func completeStartingPoints(n, m, width, height int) [][]string {
 	// определим шаг расстановки шестиугольников по горизонтали в чётных рядах
 	deltaYtwo := height + width
 
-	// startingPoints массив с отметками начальных точек для отрисовки шестиугольников
-	startingPoints := make([][]string, n+2, n+2)
-
-	var delta int
-	flag := 0
-	for i := x; i < len(startingPoints); i += deltaX {
-		startingPoints[i] = make([]string, m, m)
-		flag++
-		if flag%2 != 0 {
-			delta = deltaYtwo
-		} else {
-			delta = deltaYone
-		}
-		for j := y; j < len(startingPoints[i]); j += delta {
-			startingPoints[i][j] = `*`
+	for i := x; i+2*deltaX < len(Display)-1; i += 2 * deltaX {
+		for j := y; j+deltaYone < len(Display[i]); j += deltaYone {
+			if k != 0 {
+				hexToDisplay(i, j)
+				k--
+			}
 		}
 	}
-
-	return startingPoints
+	for i := x + deltaX; i+2*deltaX < len(Display)-1; i += 2 * deltaX {
+		for j := y + deltaYtwo; j+(2*height+width) < len(Display[i]); j += deltaYone {
+			if k != 0 {
+				hexToDisplay(i, j)
+				k--
+			}
+		}
+	}
 }
 
-// completeDisplay рисует на экране (определённом в initDisplay) шестиугольник с заданными координатами
-func completeDisplay(displey, hexField [][]string, x, y int) {
+// hexToDisplay рисует на экране (определённом в initDisplay) шестиугольник с заданными координатами
+func hexToDisplay(x, y int) {
 
-	for i := 0; i < len(hexField); i++ {
-		for j := 0; j < len(hexField[i]); j++ {
-			if hexField[i][j] != " " {
-				displey[i+x][j+y] = hexField[i][j]
+	for i := 0; i < len(HexField); i++ {
+		for j := 0; j < len(HexField[i]); j++ {
+			if HexField[i][j] != " " {
+				Display[i+x][j+y] = HexField[i][j]
 			}
 		}
 	}
@@ -266,25 +262,14 @@ func main() {
 	defer out.Flush()
 
 	// определяем входные данные
-	m, n, width, height, _ := inputing(scanner)
-
-	// определяем экран с рамкой
-	displey := initDisplay(n, m)
-
-	// подсчитываем размеры поля под один шестиугольник
-	nField := 2*height + 1
-	mField := 2*height + width
+	m, n, width, height, k := inputing(scanner)
 
 	// рисуем на единичном поле один шестиугольник
-	hexField := completeHexField(width, height, nField, mField)
+	completeHexField(width, height)
 
-	// начальные координаты для отрисовки шестиугольника согласно условиям задачи
-	x := 1
-	y := 1
+	// определяем экран с рамкой и сеткой шестиугольников
+	completeDisplay(n, m, width, height, k)
 
-	startingPoints := completeStartingPoints(n, m, width, height)
-
-	completeDisplay(displey, hexField, x, y)
-
-	outputing(out, displey)
+	// выводим результат
+	outputing(out, Display)
 }
