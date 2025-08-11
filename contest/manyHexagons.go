@@ -212,16 +212,18 @@ func completeDisplay(n, m, width, height, k int) {
 	// определим шаг расстановки шестиугольников по горизонтали в чётных рядах
 	deltaYtwo := height + width
 
+	// заполняем дисплей шестиугольниками по нечётным рядам
 	for i := x; i+2*deltaX < len(Display)-1; i += 2 * deltaX {
-		for j := y; j+deltaYone < len(Display[i]); j += deltaYone {
+		for j := y; j <= (len(Display[i])-1)-(2*height+width); j += deltaYone {
 			if k != 0 {
 				hexToDisplay(i, j)
 				k--
 			}
 		}
 	}
+	// заполняем дисплей шестиугольниками по чётным рядам
 	for i := x + deltaX; i+2*deltaX < len(Display)-1; i += 2 * deltaX {
-		for j := y + deltaYtwo; j+(2*height+width) < len(Display[i]); j += deltaYone {
+		for j := y + deltaYtwo; j <= (len(Display[i])-1)-(2*height+width); j += deltaYone {
 			if k != 0 {
 				hexToDisplay(i, j)
 				k--
