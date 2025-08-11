@@ -153,8 +153,108 @@ package main
 
 import (
 	"bufio"
+	"fmt"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 )
+
+func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
+
+	// считываем количество групп данных
+	sc.Scan()
+	groupCount, err := strconv.Atoi(sc.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем и обрабатываем данные по группам
+	for group := 1; group <= groupCount; group++ {
+
+		// считываем количество строк и столбцов
+		sc.Scan()
+		nWithm := strings.Split(sc.Text(), " ")
+		n, err := strconv.Atoi(nWithm[0])
+		m, err := strconv.Atoi(nWithm[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// поле для отображения карты
+		field := fieldInit(n, m)
+
+		// построчно сканируем ввод и посимвольно вписываем в field
+		for i := 0; i < len(field); i++ {
+			//stack := ""
+			sc.Scan()
+			for j, val := range sc.Text() {
+				if string(val) != " " {
+					field[i][j] = string(val)
+				}
+			}
+		}
+
+		delTildaExcess(field)
+
+		// выводим поле по группе
+		outputing(out, field)
+	}
+}
+
+// fieldInit инициализирует символами "~" поле для заполнения его шестиугольниками
+func fieldInit(n, m int) [][]string {
+
+	// поле для отображения карты
+	field := make([][]string, n, n)
+
+	for i := 0; i < len(field); i++ {
+		field[i] = make([]string, m, m)
+		for j := 0; j < len(field[i]); j++ {
+			field[i][j] = "~"
+		}
+	}
+
+	return field
+}
+
+/*
+	delTildaExcess убирает лишние знаки ~ для частичного решения задачи - когда шестиугольники имеют следующий вид:
+
+`_
+/ \
+\_/
+`
+*/
+func delTildaExcess(arr [][]string) {
+
+	for i := 0; i < len(arr); i++ {
+		for j := 0; j < len(arr[i]); j++ {
+
+			if i != 0 && i != len(arr)-1 && j != 0 && j != len(arr[i])-1 {
+				if arr[i][j] == "~" &&
+					arr[i-1][j] == "_" && arr[i+1][j] == "_" &&
+					arr[i][j-1] == "/" && arr[i][j+1] == "\\" &&
+					arr[i+1][j-1] == "\\" && arr[i+1][j+1] == "/" {
+
+					arr[i][j] = " "
+				}
+			}
+		}
+	}
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, arr [][]string) {
+
+	for i := 0; i < len(arr); i++ {
+		for j := 0; j < len(arr[i]); j++ {
+			fmt.Fprintf(out, "%s", arr[i][j])
+		}
+		fmt.Fprint(out, "\n")
+	}
+	fmt.Fprint(out, "\n")
+}
 
 func main() {
 
@@ -166,4 +266,5 @@ func main() {
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 
+	inputCalc(scanner, out)
 }
