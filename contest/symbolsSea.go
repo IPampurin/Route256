@@ -182,15 +182,19 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		}
 
 		// поле для отображения карты
-		field := fieldInit(n, m)
+		// field := fieldInit(n, m)
+		field := make([][]string, n, n)
 
 		// построчно сканируем ввод и посимвольно вписываем в field
 		for i := 0; i < len(field); i++ {
+			field[i] = make([]string, m, m)
 			//stack := ""
 			sc.Scan()
 			for j, val := range sc.Text() {
 				if string(val) != " " {
 					field[i][j] = string(val)
+				} else {
+					field[i][j] = "~"
 				}
 			}
 		}
