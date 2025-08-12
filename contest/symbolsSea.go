@@ -185,9 +185,9 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		coordinates := make([]struct{ x, y int }, 0)
 
 		// полувысота шестиугольника
-		height := 0
+		var height int
 		// длина основания шестиугольника
-		width := 0
+		var width int
 		// need это признак необходимости выяснения высоты и длины шестиугольника
 		need := true
 		// поле для отображения карты
@@ -209,16 +209,24 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 					coordinates = append(coordinates, struct{ x, y int }{x: i, y: j})
 				}
 				// если ещё не узнавали параметры шестиугольника, узнаём их
-				if need && field[i][j] == "/" && field[i-1][j] == "\\" {
-					longHexagon := func(row, column int) int {
-						res := 0
-						for field[row][column] != "\\" {
+				if need && field[i][j] == "/" && field[i][j-1] == "_" {
+					width = func(row, column int) int {
+						res := -1
+						for column >= 0 && field[row][column] != "\\" {
 							res++
 							column--
 						}
-
 						return res
 					}(i, j)
+					height = func(row, column int) int {
+						res := 1
+						for row >= 0 && field[row][column] != "_" {
+							res++
+							row--
+						}
+						return res
+					}(i-1, j-1)
+					height = height / 2
 					need = false
 				}
 			}
