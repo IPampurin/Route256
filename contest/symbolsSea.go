@@ -181,68 +181,92 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 			log.Fatal(err)
 		}
 
+		// в coordinates будем запоминать координаты начала шестиугольников в сетке
+		coordinates := make([]struct{ x, y int }, 0)
+
+		// полувысота шестиугольника
+		height := 0
+		// длина основания шестиугольника
+		width := 0
+		// need это признак необходимости выяснения высоты и длины шестиугольника
+		need := true
 		// поле для отображения карты
-		// field := fieldInit(n, m)
 		field := make([][]string, n, n)
 
-		// построчно сканируем ввод и посимвольно вписываем в field
+		// построчно сканируем ввод и посимвольно вписываем в field, все пробелы меняя на ~
 		for i := 0; i < len(field); i++ {
 			field[i] = make([]string, m, m)
-			//stack := ""
 			sc.Scan()
+
 			for j, val := range sc.Text() {
 				if string(val) != " " {
 					field[i][j] = string(val)
 				} else {
 					field[i][j] = "~"
 				}
+				// если попадается признак левой оконечности шестиугольника, запоминаем координаты для последующей обработки
+				if field[i][j] == "\\" && field[i-1][j] == "/" {
+					coordinates = append(coordinates, struct{ x, y int }{x: i, y: j})
+				}
+				// если ещё не узнавали параметры шестиугольника, узнаём их
+				if need && field[i][j] == "/" && field[i-1][j] == "\\" {
+					longHexagon := func(row, column int) int {
+						res := 0
+						for field[row][column] != "\\" {
+							res++
+							column--
+						}
+
+						return res
+					}(i, j)
+					need = false
+				}
 			}
 		}
-
-		delTildaExcess(field)
 
 		// выводим поле по группе
 		outputing(out, field)
 	}
 }
 
-// fieldInit инициализирует символами "~" поле для заполнения его шестиугольниками
-func fieldInit(n, m int) [][]string {
+// hexPrint рисует заполненный пробелами шестиугольник с заданными размерами по заданным координатам в специально обученном массиве
+func hexPrint(h, w, x, y int, field *[][]string) {
 
-	// поле для отображения карты
-	field := make([][]string, n, n)
-
-	for i := 0; i < len(field); i++ {
-		field[i] = make([]string, m, m)
-		for j := 0; j < len(field[i]); j++ {
-			field[i][j] = "~"
+	prefix := -1
+	// рисуем крышку
+	for i := x - 1; i >= x-h-1; i-- {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if i != x-h-1 && j == y+prefix {
+				(*field)[i][j] = "/"
+			}
+			if i != x-h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j] = " "
+			}
+			if i != x-h-1 && j == y+2*h+w-1-prefix {
+				(*field)[i][j] = "\\"
+			}
+			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
+				(*field)[i][j] = "_"
+			}
 		}
 	}
-
-	return field
-}
-
-/*
-	delTildaExcess убирает лишние знаки ~ для частичного решения задачи - когда шестиугольники имеют следующий вид:
-
-`_
-/ \
-\_/
-`
-*/
-func delTildaExcess(arr [][]string) {
-
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr[i]); j++ {
-
-			if i != 0 && i != len(arr)-1 && j != 0 && j != len(arr[i])-1 {
-				if arr[i][j] == "~" &&
-					arr[i-1][j] == "_" && arr[i+1][j] == "_" &&
-					arr[i][j-1] == "/" && arr[i][j+1] == "\\" &&
-					arr[i+1][j-1] == "\\" && arr[i+1][j+1] == "/" {
-
-					arr[i][j] = " "
-				}
+	// рисуем донышко
+	prefix = -1
+	for i := x; i <= x+h-1; i++ {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if j == y+prefix {
+				(*field)[i][j] = "\\"
+			}
+			if i != x+h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j] = " "
+			}
+			if j == y+2*h+w-1-prefix {
+				(*field)[i][j] = "/"
+			}
+			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+				(*field)[i][j] = "_"
 			}
 		}
 	}
