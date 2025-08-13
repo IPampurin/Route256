@@ -184,12 +184,6 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		// в coordinates будем запоминать координаты начала шестиугольников в сетке
 		coordinates := make([]struct{ x, y int }, 0)
 
-		// полувысота шестиугольника
-		var height int
-		// длина основания шестиугольника
-		var width int
-		// need это признак необходимости выяснения высоты и длины шестиугольника
-		need := true
 		// поле для отображения карты
 		field := make([][]string, n, n)
 
@@ -205,30 +199,20 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 					field[i][j] = "~"
 				}
 				// если попадается признак левой оконечности шестиугольника, запоминаем координаты для последующей обработки
-				if field[i][j] == "\\" && field[i-1][j] == "/" {
+				if i > 0 && field[i][j] == "\\" && field[i-1][j] == "/" {
 					coordinates = append(coordinates, struct{ x, y int }{x: i, y: j})
 				}
-				// если ещё не узнавали параметры шестиугольника, узнаём их
-				if need && field[i][j] == "/" && field[i][j-1] == "_" {
-					width = func(row, column int) int {
-						res := -1
-						for column >= 0 && field[row][column] != "\\" {
-							res++
-							column--
-						}
-						return res
-					}(i, j)
-					height = func(row, column int) int {
-						res := 1
-						for row >= 0 && field[row][column] != "_" {
-							res++
-							row--
-						}
-						return res
-					}(i-1, j-1)
-					height = height / 2
-					need = false
-				}
+			}
+		}
+
+		// height полувысота шестиугольника, width длина основания шестиугольника
+		// определяем параметры сетки шестиугольников исходя из предположения, что на поле есть хотя бы один шестиугольник
+		height, width := sizeHex(coordinates[0].x, coordinates[0].y, &field)
+
+		// проходим по координатам вершин предполагаемых шестиугольников и после валидации рисуем "сушу"
+		for _, point := range coordinates {
+			if validHex(height, width, point.x, point.y, &field) {
+				hexPrint(height, width, point.x, point.y, &field)
 			}
 		}
 
@@ -237,8 +221,39 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 	}
 }
 
+// sizeHex определяет параметры шестиугольной сетки в нашем специально обученном массиве
+func sizeHex(x, y int, field *[][]string) (int, int) {
+
+	x--    // перемещаемся на нижний левый элемент верхней крышки шестиугольника
+	h := 1 // полувысота в этом случае == 1
+	// шагаем вверх по левой стороне крышки шестиугольника пока не нащупаем самый верх
+	for (*field)[x-1][y+1] != "_" {
+		h++
+		x--
+		y++
+	}
+
+	// перемещаемся на крайний левый элемент верха крышки шестиугольника
+	x--
+	y++
+	// в этом случае длина основания шестиугольника == 0
+	w := 0
+	// шагаем вправо по верху крышки шестиугольника пока не нащупаем её край
+	for (*field)[x][y] == "_" {
+		w++
+		y++
+	}
+
+	return h, w
+}
+
 // hexPrint рисует заполненный пробелами шестиугольник с заданными размерами по заданным координатам в специально обученном массиве
 func hexPrint(h, w, x, y int, field *[][]string) {
+
+	// если при отрисовке шестиугольника есть выход за границы массива, то ничего не рисуем
+	if y+2*h+w-1 > len((*field)[0])-1 {
+		return
+	}
 
 	prefix := -1
 	// рисуем крышку
@@ -278,6 +293,62 @@ func hexPrint(h, w, x, y int, field *[][]string) {
 			}
 		}
 	}
+}
+
+// validHex проверяет наличие всех шести сторон шестиугольника определённых размеров по заданным координатам в массиве
+func validHex(h, w, x, y int, field *[][]string) bool {
+
+	// если при проверке шестиугольника есть выход за границы массива, то ничего не рисуем
+	if y+2*h+w-1 > len((*field)[0])-1 {
+		return false
+	}
+
+	prefix := -1
+	// проверяем крышку
+	for i := x - 1; i >= x-h-1; i-- {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if i != x-h-1 && j == y+prefix {
+				if (*field)[i][j] != "/" {
+					return false
+				}
+			}
+			if i != x-h-1 && j == y+2*h+w-1-prefix {
+				if (*field)[i][j] != "\\" {
+					return false
+				}
+			}
+			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
+				if (*field)[i][j] != "_" {
+					return false
+				}
+			}
+		}
+	}
+	// проверяем донышко
+	prefix = -1
+	for i := x; i <= x+h-1; i++ {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if j == y+prefix {
+				if (*field)[i][j] != "\\" {
+					return false
+				}
+			}
+			if j == y+2*h+w-1-prefix {
+				if (*field)[i][j] != "/" {
+					return false
+				}
+			}
+			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+				if (*field)[i][j] != "_" {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
 }
 
 // outputing выводит результат
