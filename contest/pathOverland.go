@@ -121,4 +121,273 @@ YES
 NO
 */
 
- 
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// Dot описывает ячейку поля
+type Dot struct {
+	Symbol string // какой символ был на вводе
+	Badge  string // earth - земля, water - вода
+	Mark   bool   // посещали ячейку при поиске пути или нет
+}
+
+// inputCalc объединяет логику работы с данными
+func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
+
+	// считываем количество групп данных
+	sc.Scan()
+	groupCount, err := strconv.Atoi(sc.Text())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// считываем и обрабатываем данные по группам
+	for group := 1; group <= groupCount; group++ {
+
+		// зададим итоговое сообщение
+		message := "NO"
+
+		// считываем количество строк и столбцов
+		n, m := inpTwoInt(sc)
+
+		// в coordinates будем запоминать координаты начала шестиугольников в сетке
+		coordinates := make([]struct{ x, y int }, 0)
+
+		// поле для отображения карты
+		field := make([][]Dot, n, n)
+
+		// построчно сканируем ввод и посимвольно вписываем в field
+		for i := 0; i < len(field); i++ {
+			field[i] = make([]Dot, m, m)
+			sc.Scan()
+			for j, val := range sc.Text() {
+				field[i][j] = Dot{
+					Symbol: string(val),
+					Badge:  "water",
+					Mark:   false,
+				}
+				// если попадается признак левой оконечности шестиугольника, запоминаем координаты для последующей обработки
+				if i > 0 && field[i][j].Symbol == "\\" && field[i-1][j].Symbol == "/" {
+					coordinates = append(coordinates, struct{ x, y int }{x: i, y: j})
+				}
+			}
+		}
+
+		// считываем координаты стартовой точки
+		startX, startY := inpTwoInt(sc)
+
+		// считываем координаты финальной точки
+		finishX, finishY := inpTwoInt(sc)
+
+		// height полувысота шестиугольника, width длина основания шестиугольника
+		// определяем параметры сетки шестиугольников исходя из предположения, что на поле есть хотя бы один шестиугольник
+		height, width := sizeHex(coordinates[0].x, coordinates[0].y, &field)
+
+		// проходим по координатам вершин предполагаемых шестиугольников и после валидации рисуем "сушу"
+		for _, point := range coordinates {
+			if validHex(height, width, point.x, point.y, &field) {
+				hexPrint(height, width, point.x, point.y, &field)
+			}
+		}
+
+		// выводим поле по группе
+		outputing(out, field)
+	}
+}
+
+// inpTwoInt считывает строку, в которой вводятся два числа int
+func inpTwoInt(sc *bufio.Scanner) (int, int) {
+
+	// считываем строку с будем надеяться двумя числами
+	sc.Scan()
+	aWithb := strings.Split(sc.Text(), " ")
+	a, err := strconv.Atoi(aWithb[0])
+	b, err := strconv.Atoi(aWithb[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return a, b
+}
+
+// sizeHex определяет параметры шестиугольной сетки в нашем специально обученном массиве
+func sizeHex(x, y int, field *[][]Dot) (int, int) {
+
+	x--    // перемещаемся на нижний левый элемент верхней крышки шестиугольника
+	h := 1 // полувысота в этом случае == 1
+	// шагаем вверх по левой стороне крышки шестиугольника пока не нащупаем самый верх
+	for (*field)[x-1][y+1].Symbol != "_" {
+		h++
+		x--
+		y++
+	}
+
+	// перемещаемся на крайний левый элемент верха крышки шестиугольника
+	x--
+	y++
+	// в этом случае длина основания шестиугольника == 0
+	w := 0
+	// шагаем вправо по верху крышки шестиугольника пока не нащупаем её край
+	for (*field)[x][y].Symbol == "_" {
+		w++
+		y++
+	}
+
+	return h, w
+}
+
+// hexPrint вводит заполненный шестиугольник с заданными размерами и признаком earth по заданным координатам в специально обученный массив
+func hexPrint(h, w, x, y int, field *[][]Dot) {
+
+	// если при отрисовке шестиугольника есть выход за границы массива, то ничего не рисуем
+	if y+2*h+w-1 > len((*field)[0])-1 {
+		return
+	}
+
+	prefix := -1
+	// рисуем крышку
+	for i := x - 1; i >= x-h-1; i-- {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if i != x-h-1 && j == y+prefix {
+				(*field)[i][j].Symbol = "/"
+				(*field)[i][j].Badge = "earth"
+			}
+			if i != x-h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j].Symbol = " "
+				(*field)[i][j].Badge = "earth"
+			}
+			if i != x-h-1 && j == y+2*h+w-1-prefix {
+				(*field)[i][j].Symbol = "\\"
+				(*field)[i][j].Badge = "earth"
+			}
+			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
+				(*field)[i][j].Symbol = "_"
+				(*field)[i][j].Badge = "earth"
+			}
+		}
+	}
+	// рисуем донышко
+	prefix = -1
+	for i := x; i <= x+h-1; i++ {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if j == y+prefix {
+				(*field)[i][j].Symbol = "\\"
+				(*field)[i][j].Badge = "earth"
+			}
+			if i != x+h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j].Symbol = " "
+				(*field)[i][j].Badge = "earth"
+			}
+			if j == y+2*h+w-1-prefix {
+				(*field)[i][j].Symbol = "/"
+				(*field)[i][j].Badge = "earth"
+			}
+			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+				(*field)[i][j].Symbol = "_"
+				(*field)[i][j].Badge = "earth"
+			}
+		}
+	}
+}
+
+// validHex проверяет наличие всех шести сторон шестиугольника определённых размеров по заданным координатам в массиве
+func validHex(h, w, x, y int, field *[][]Dot) bool {
+
+	// если при проверке шестиугольника есть выход за границы массива, то ничего не рисуем
+	if y+2*h+w-1 > len((*field)[0])-1 {
+		return false
+	}
+
+	prefix := -1
+	// проверяем крышку
+	for i := x - 1; i >= x-h-1; i-- {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if i != x-h-1 && j == y+prefix {
+				if (*field)[i][j].Symbol != "/" {
+					return false
+				}
+			}
+			if i != x-h-1 && j == y+2*h+w-1-prefix {
+				if (*field)[i][j].Symbol != "\\" {
+					return false
+				}
+			}
+			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
+				if (*field)[i][j].Symbol != "_" {
+					return false
+				}
+			}
+		}
+	}
+	// проверяем донышко
+	prefix = -1
+	for i := x; i <= x+h-1; i++ {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if j == y+prefix {
+				if (*field)[i][j].Symbol != "\\" {
+					return false
+				}
+			}
+			if j == y+2*h+w-1-prefix {
+				if (*field)[i][j].Symbol != "/" {
+					return false
+				}
+			}
+			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+				if (*field)[i][j].Symbol != "_" {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, message string) {
+
+	fmt.Fprintf(out, "%s", message)
+
+}
+
+/*
+func outputing(out *bufio.Writer, arr [][]Dot) {
+
+		for i := 0; i < len(arr); i++ {
+			for j := 0; j < len(arr[i]); j++ {
+				if arr[i][j].Badge == "earth" {
+					fmt.Fprintf(out, "%v", "*")
+				} else {
+					fmt.Fprintf(out, "%v", "~")
+				}
+			}
+			fmt.Fprint(out, "\n")
+		}
+		fmt.Fprint(out, "\n")
+	}
+*/
+func main() {
+
+	// определяем ввод
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+
+	// определяем вывод
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
+	inputCalc(scanner, out)
+}
