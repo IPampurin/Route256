@@ -138,18 +138,14 @@ type Dot struct {
 	NamePeak int    // свяжем точку массива с вершиной графа по номеру вершины
 }
 
-// Point содержит координаты сетки шестиугольников
-type Point struct {
-	x int // индекс строки условного начала шестиугольника
-	y int // индеск столбца условного начала шестиугольника
-}
-
 // Peak описывает вершину графа, в которую мы превращаем шестиугольник суши или моря
 type Peak struct {
 	Name  int              // имя (или номер) вершиины графа (идентификатор шестиугольника)
 	Badge string           // признак отнесения к суше или морю (earth - земля, water - вода)
 	Link  map[int]struct{} // связи с суседями
 	Mark  bool             // отметка о посещении вершины (шестиугольника)
+	x     int              // индекс строки условного начала шестиугольника
+	y     int              // индеск столбца условного начала шестиугольника
 }
 
 // inputCalc объединяет логику работы с данными
@@ -166,17 +162,16 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 	for group := 1; group <= groupCount; group++ {
 
 		// зададим итоговое сообщение
-		message := "NO"
+		//	message := "NO"
 
 		// считываем количество строк и столбцов
 		n, m := inpTwoInt(sc)
 
+		// graph это набор вершин графа, где вершина это шестиугольник ячеек поля, объединённых одним признаком (суша или море)
+		graph := make(map[int]*Peak)
+
 		// поле для отображения карты
 		field := make([][]Dot, n, n)
-
-		// в point запишем первую попавшуюся точку условного начала шестиугольника для последующего формирования сетки шестиугольников
-		var point Point
-		flag := true
 
 		// построчно сканируем ввод и посимвольно вписываем в field
 		for i := 0; i < len(field); i++ {
@@ -188,13 +183,18 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 					NamePeak: -1, // при заполнении массива все точки свяжем с той вершиной, которой не будет
 				}
 				field[i][j] = dot
-				// если попадается признак левой оконечности шестиугольника, записываем координаты точки
-				if flag && i > 0 && field[i][j].Symbol == "\\" && field[i-1][j].Symbol == "/" {
-					point = Point{
-						x: i,
-						y: j,
+				// если попадается признак левой оконечности шестиугольника, записываем новую вершину графа до дальнейшей валидации
+				if i > 0 && field[i][j].Symbol == "\\" && field[i-1][j].Symbol == "/" {
+					peak := Peak{
+						Name:  len(graph),
+						Badge: "earth",
+						Link:  make(map[int]struct{}),
+						Mark:  false,
+						x:     i,
+						y:     j,
 					}
-					flag = false
+					peak.Link[len(graph)] = struct{}{}
+					graph[peak.Name] = &peak
 				}
 			}
 		}
@@ -206,49 +206,20 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 
 		// height полувысота шестиугольника, width длина основания шестиугольника
 		// определяем параметры сетки шестиугольников исходя из предположения, что на поле есть хотя бы один шестиугольник
-		height, width := sizeHex(point.x, point.y, &field)
+		height, width := sizeHex(graph[0].x, graph[0].y, &field)
 
-		netPoints := netCoordinates(point.x, point.y, height, width, &field)
-
-		// peaks это набор вершин графа, граф, где вершина это шестиугольник ячеек поля, объединённых одним признаком (суша или море)
-		peaks := make([]Peak, 0)
-
-		// номер вершины для удобства построения связей
-		var currentNamePeak int
-		// проходим по координатам вершин предполагаемых шестиугольников и после валидации доводим граф до ума
-		for z, hex := range peaks {
-			if validHex(height, width, hex.x, hex.y, &field) {
-				peaks[z].Badge = "earth"
-				hexPrintEarth(height, width, hex.x, hex.y, hex.Name, &field)
-				// заполняем связи между вершинами с учётом шага сетки и доступности в массиве
-				if hex.y-2*(height+width) >= 0 {
-					currentNamePeak = field[hex.x][hex.y-2*(height+width)].NamePeak
-					if currentNamePeak != -1 {
-						peaks[z].Link[currentNamePeak] = struct{}{} // вносим в связи вершину левее
-						peaks[currentNamePeak].Link[z] = struct{}{} // для вершины левее вносим в связи текущую вершину
-					}
-				}
-				if hex.x-2*height >= 0 {
-					currentNamePeak = field[hex.x-2*height][hex.y].NamePeak
-					if currentNamePeak != -1 {
-						peaks[z].Link[currentNamePeak] = struct{}{} // вносим в связи вершину выше
-						peaks[currentNamePeak].Link[z] = struct{}{} // для вершины выше вносим в связи текущую вершину
-					}
-				}
-				if hex.y-(height+width) >= 0 && hex.x-height >= 0 {
-					currentNamePeak = field[hex.x-height][hex.y-(height+width)].NamePeak
-					if currentNamePeak != -1 {
-						peaks[z].Link[currentNamePeak] = struct{}{} // вносим в связи вершину выше и левее
-						peaks[currentNamePeak].Link[z] = struct{}{} // для вершины выше и левее вносим в связи текущую вершину
-					}
-				}
-				if hex.y+(height+width) < len(field[0]) && hex.x-height >= 0 {
-					if currentNamePeak != -1 {
-						peaks[z].Link[currentNamePeak] = struct{}{} // вносим в связи вершину выше и правее
-						peaks[currentNamePeak].Link[z] = struct{}{} // для вершины выше и правее вносим в связи текущую вершину
-					}
-				}
+		// проходим по координатам вершин предполагаемых шестиугольников и оставляем в графе только валидные вершины (т.е. землю)
+		for key, _ := range graph {
+			if validHex(height, width, graph[key].x, graph[key].y, &field) {
+				hexPrintEarth(height, width, graph[key].x, graph[key].y, graph[key].Name, &field)
+			} else {
+				delete(graph, graph[key].Name)
 			}
+		}
+
+		// проходим по вершинам графа и вносим в список связей соседние вершины, если это земля
+		for key, _ := range graph {
+			linkBuilder(height, width, &field, graph[key])
 		}
 
 		// определяем стартовую и финишную вершины графа
@@ -256,7 +227,56 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		finishPeak := field[finishX][finishY].NamePeak
 
 		// выводим поле по группе
-		outputing(out, peaks)
+		outputing(out, graph, startPeak, finishPeak)
+		outputingArr(out, field)
+	}
+}
+
+// linkBuilder корректирует мапу связей вершины графа
+func linkBuilder(h, w int, field *[][]Dot, peak *Peak) {
+
+	// смещаемся на одну ячейку, чтобы не попадать в границу шестиугольника
+	x := peak.x - 1
+	y := peak.y + 1
+
+	// добавляем в мапу связей вершины данные по соседним шести шестиугольникам, если они, конечно, земля
+
+	var num int // номер вершины шестиугольника-соседа
+	// для шестиугольника выше описанного в peak
+	if x-2*h >= 0 {
+		if num = (*field)[x-2*h][y].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже, чем в peak
+	if x+2*h < len(*field) {
+		if num = (*field)[x+2*h][y].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника выше и левее
+	if x-h >= 0 && y-(h+w) >= 0 {
+		if num = (*field)[x-h][y-(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже и левее
+	if x+h < len(*field) && y-(h+w) >= 0 {
+		if num = (*field)[x+h][y-(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника выше и правее
+	if x-h >= 0 && y+(h+w) < len((*field)[0]) {
+		if num = (*field)[x-h][y+(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже и правее
+	if x+h < len(*field) && y+(h+w) < len((*field)[0]) {
+		if num = (*field)[x+h][y+(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
 	}
 }
 
@@ -299,62 +319,6 @@ func sizeHex(x, y int, field *[][]Dot) (int, int) {
 	}
 
 	return h, w
-}
-
-func netCoordinates(x, y, height, width int, field *[][]Dot) []Point {
-
-	// набор координат точек условного начала шестиугольников
-	points := make([]Point, 0)
-
-	return points
-}
-
-// hexPrintEarth меняет принадлежность точек массива с несуществующей вершины на конкретную вершину графа
-func hexPrintEarth(h, w, x, y, numPeak int, field *[][]Dot) {
-
-	// если есть выход за границы массива, то ничего не меняем - это кусочек моря
-	if y+2*h+w-1 > len((*field)[0])-1 {
-		return
-	}
-
-	prefix := -1
-	// идём по крышке
-	for i := x - 1; i >= x-h-1; i-- {
-		prefix++
-		for j := y; j <= y+2*h+w; j++ {
-			if i != x-h-1 && j == y+prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if i != x-h-1 && y+prefix < j && j < y+2*h+w-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if i != x-h-1 && j == y+2*h+w-1-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-		}
-	}
-	// идём по донышку
-	prefix = -1
-	for i := x; i <= x+h-1; i++ {
-		prefix++
-		for j := y; j <= y+2*h+w; j++ {
-			if j == y+prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if i != x+h-1 && y+prefix < j && j < y+2*h+w-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if j == y+2*h+w-1-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
-				(*field)[i][j].NamePeak = numPeak
-			}
-		}
-	}
 }
 
 // validHex проверяет наличие всех шести сторон шестиугольника определённых размеров по заданным координатам в массиве
@@ -413,6 +377,54 @@ func validHex(h, w, x, y int, field *[][]Dot) bool {
 	return true
 }
 
+// hexPrintEarth меняет принадлежность точек массива с несуществующей вершины на конкретную вершину графа
+func hexPrintEarth(h, w, x, y, numPeak int, field *[][]Dot) {
+
+	// если есть выход за границы массива, то ничего не меняем - это кусочек моря
+	if y+2*h+w-1 > len((*field)[0])-1 {
+		return
+	}
+
+	prefix := -1
+	// идём по крышке
+	for i := x - 1; i >= x-h-1; i-- {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if i != x-h-1 && j == y+prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if i != x-h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if i != x-h-1 && j == y+2*h+w-1-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+		}
+	}
+	// идём по донышку
+	prefix = -1
+	for i := x; i <= x+h-1; i++ {
+		prefix++
+		for j := y; j <= y+2*h+w; j++ {
+			if j == y+prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if i != x+h-1 && y+prefix < j && j < y+2*h+w-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if j == y+2*h+w-1-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+				(*field)[i][j].NamePeak = numPeak
+			}
+		}
+	}
+}
+
 /*
 // outputing выводит результат
 func outputing(out *bufio.Writer, message string) {
@@ -422,11 +434,29 @@ func outputing(out *bufio.Writer, message string) {
 }
 */
 
-func outputing(out *bufio.Writer, arr []Peak) {
+func outputing(out *bufio.Writer, graph map[int]*Peak, startPeak, finishPeak int) {
+
+	for _, peak := range graph {
+		fmt.Fprintf(out, "peak №%v link = %v\n", peak.Name, peak.Link)
+	}
+	fmt.Fprintf(out, "\n")
+
+}
+func outputingArr(out *bufio.Writer, arr [][]Dot) {
 
 	for i := 0; i < len(arr); i++ {
-		fmt.Fprintf(out, "%v\n", arr[i])
+		for j := 0; j < len(arr[i]); j++ {
+			if arr[i][j].NamePeak == -1 {
+				fmt.Fprintf(out, "#")
+			} else if arr[i][j].Symbol == " " {
+				fmt.Fprintf(out, "%v", arr[i][j].NamePeak)
+			} else {
+				fmt.Fprintf(out, "%v", arr[i][j].Symbol)
+			}
+		}
+		fmt.Fprint(out, "\n")
 	}
+	fmt.Fprint(out, "\n")
 }
 
 func main() {
