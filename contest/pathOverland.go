@@ -141,12 +141,11 @@ type Dot struct {
 
 // Peak описывает вершину графа, в которую мы превращаем шестиугольник суши или моря
 type Peak struct {
-	Name  int              // имя (или номер) вершиины графа (идентификатор шестиугольника)
-	Badge string           // признак отнесения к суше или морю (earth - земля, water - вода)
-	Link  map[int]struct{} // связи с суседями
-	Mark  bool             // отметка о посещении вершины (шестиугольника)
-	x     int              // индекс строки условного начала шестиугольника
-	y     int              // индеск столбца условного начала шестиугольника
+	Link map[int]struct{} // связи с суседями
+	Name int              // имя (или номер) вершиины графа (идентификатор шестиугольника)
+	x    int              // индекс строки условного начала шестиугольника
+	y    int              // индеск столбца условного начала шестиугольника
+	Mark bool             // отметка о посещении вершины (шестиугольника)
 }
 
 // inputCalc объединяет логику работы с данными
@@ -187,14 +186,12 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 				// если попадается признак левой оконечности шестиугольника, записываем новую вершину графа до дальнейшей валидации
 				if i > 0 && field[i][j].Symbol == "\\" && field[i-1][j].Symbol == "/" {
 					peak := Peak{
-						Name:  len(graph),
-						Badge: "earth",
-						Link:  make(map[int]struct{}),
-						Mark:  false,
-						x:     i,
-						y:     j,
+						Link: make(map[int]struct{}),
+						Name: len(graph),
+						x:    i,
+						y:    j,
+						Mark: false,
 					}
-					peak.Link[len(graph)] = struct{}{}
 					graph[peak.Name] = &peak
 				}
 			}
@@ -223,7 +220,7 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 			linkBuilder(height, width, &field, graph[key])
 		}
 
-		// определяем стартовую и финишную вершины графа
+		// определяем стартовую и финишную вершины графа (-1 для приведения номеров к индексам)
 		startPeak := field[startX-1][startY-1].NamePeak
 		finishPeak := field[finishX-1][finishY-1].NamePeak
 
@@ -233,109 +230,7 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 			message = "YES"
 		}
 
-		//		fmt.Println("startPeak = ", startPeak, " finishPeak = ", finishPeak)
-		//		fmt.Println(message)
 		outputing(out, message)
-		/*
-			// выводим поле по группе
-			outputing(out, graph, startPeak, finishPeak)
-			outputingArr(out, field)
-		*/
-	}
-}
-
-// traversalGraphBFS обходит граф "в ширину" от стартовой вершины до конечной,
-// если такой путь есть, возвращает true, если пути нет - false
-func traversalGraphBFS(start, finish int, graph map[int]*Peak) bool {
-
-	// создаём новую очередь, используя пакет container/list
-	queue := list.New()
-	// добавляем стартовую вершину в наш чудо FIFO
-	queue.PushBack(graph[start])
-
-	// создаём мапу для сохранения информации о родительских вершинах
-	parent := make(map[int]int)
-	// у стартовой вершины родительских структур не предполагается поэтому проставляем номер несуществующей вершины -2
-	parent[start] = -2
-
-	// применяем алгоритм BFS
-	for queue.Len() > 0 {
-
-		// получаем указатель на текущую вершину
-		currentPeakPtr := queue.Front().Value.(*Peak)
-
-		// запоминаем первую вершину, currentPeak, очереди queue
-		//currentPeak := queue.Front().Value.(*Peak)
-
-		// и удаляем первый элемент из очереди
-		queue.Remove(queue.Front())
-
-		currentPeak := *currentPeakPtr // разыменовываем указатель
-
-		if currentPeak.Name == finish {
-			// если мы встретили финишную вершину, значит, путь существует
-			return true
-		}
-		// итерируемся по мапе связей текущей вершины
-		for linked, _ := range currentPeak.Link {
-			// и если вершина в связи не посещённая (то есть её нет и в мапе родительских связей)
-			if _, ok := parent[linked]; !ok {
-				// добавляем в мапу родительских связей пару [номер вершины из связей]"номер текущей вершины"
-				parent[linked] = currentPeak.Name
-				// ставим текущую вершину в конец очереди queue
-				queue.PushBack(graph[linked])
-			}
-		}
-	}
-	// если мы не встретили финишную вершину, значит, такого пути не существует
-	return false
-}
-
-// linkBuilder корректирует мапу связей вершины графа
-func linkBuilder(h, w int, field *[][]Dot, peak *Peak) {
-
-	// смещаемся на одну ячейку, чтобы не попадать в границу шестиугольника
-	x := peak.x - 1
-	y := peak.y + 1
-
-	// добавляем в мапу связей вершины данные по соседним шести шестиугольникам, если они, конечно, земля
-
-	var num int // номер вершины шестиугольника-соседа
-	// для шестиугольника выше описанного в peak
-	if x-2*h >= 0 {
-		if num = (*field)[x-2*h][y].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
-	}
-	// для шестиугольника ниже, чем в peak
-	if x+2*h < len(*field) {
-		if num = (*field)[x+2*h][y].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
-	}
-	// для шестиугольника выше и левее
-	if x-h >= 0 && y-(h+w) >= 0 {
-		if num = (*field)[x-h][y-(h+w)].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
-	}
-	// для шестиугольника ниже и левее
-	if x+h < len(*field) && y-(h+w) >= 0 {
-		if num = (*field)[x+h][y-(h+w)].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
-	}
-	// для шестиугольника выше и правее
-	if x-h >= 0 && y+(h+w) < len((*field)[0]) {
-		if num = (*field)[x-h][y+(h+w)].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
-	}
-	// для шестиугольника ниже и правее
-	if x+h < len(*field) && y+(h+w) < len((*field)[0]) {
-		if num = (*field)[x+h][y+(h+w)].NamePeak; num != -1 {
-			peak.Link[num] = struct{}{}
-		}
 	}
 }
 
@@ -383,54 +278,30 @@ func sizeHex(x, y int, field *[][]Dot) (int, int) {
 // validHex проверяет наличие всех шести сторон шестиугольника определённых размеров по заданным координатам в массиве
 func validHex(h, w, x, y int, field *[][]Dot) bool {
 
-	// если при проверке шестиугольника есть выход за границы массива, то ничего не рисуем
-	if y+2*h+w-1 > len((*field)[0])-1 {
+	// если при проверке шестиугольника есть выход за правую границу массива, то валидировать нечего
+	if y+2*h+w-1 > len((*field)[0])-1 || y+h > len((*field)[0])-1 {
+		return false
+	}
+	// если при проверке шестиугольника есть выход за верхнюю или нижнюю границы массива, то валидировать нечего
+	if x-h-1 < 0 || x+h-1 > len(*field)-1 {
 		return false
 	}
 
-	prefix := -1
-	// проверяем крышку
-	for i := x - 1; i >= x-h-1; i-- {
-		prefix++
-		for j := y; j <= y+2*h+w; j++ {
-			if i != x-h-1 && j == y+prefix {
-				if (*field)[i][j].Symbol != "/" {
-					return false
-				}
-			}
-			if i != x-h-1 && j == y+2*h+w-1-prefix {
-				if (*field)[i][j].Symbol != "\\" {
-					return false
-				}
-			}
-			if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
-				if (*field)[i][j].Symbol != "_" {
-					return false
-				}
-			}
-		}
+	// проверяем наличие правой нижней стороны
+	if (*field)[x][y+2*h+w-1].Symbol != "/" {
+		return false
 	}
-	// проверяем донышко
-	prefix = -1
-	for i := x; i <= x+h-1; i++ {
-		prefix++
-		for j := y; j <= y+2*h+w; j++ {
-			if j == y+prefix {
-				if (*field)[i][j].Symbol != "\\" {
-					return false
-				}
-			}
-			if j == y+2*h+w-1-prefix {
-				if (*field)[i][j].Symbol != "/" {
-					return false
-				}
-			}
-			if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
-				if (*field)[i][j].Symbol != "_" {
-					return false
-				}
-			}
-		}
+	// проверяем наличие правой верхней стороны
+	if (*field)[x-1][y+2*h+w-1].Symbol != "\\" {
+		return false
+	}
+	// проверяем наличие верхней стороны
+	if (*field)[x-h-1][y+h].Symbol != "_" {
+		return false
+	}
+	// проверяем наличие нижней стороны
+	if (*field)[x+h-1][y+h].Symbol != "_" {
+		return false
 	}
 
 	return true
@@ -484,38 +355,104 @@ func hexPrintEarth(h, w, x, y, numPeak int, field *[][]Dot) {
 	}
 }
 
+// linkBuilder корректирует мапу связей вершины графа
+func linkBuilder(h, w int, field *[][]Dot, peak *Peak) {
+
+	// смещаемся на одну ячейку, чтобы не попадать в границу шестиугольника
+	x := peak.x - 1
+	y := peak.y + 1
+
+	// добавляем в мапу связей вершины данные по соседним шести шестиугольникам, если они, конечно, земля
+
+	var num int // номер вершины шестиугольника-соседа
+	// для шестиугольника выше описанного в peak
+	if x-2*h >= 0 {
+		if num = (*field)[x-2*h][y].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже, чем в peak
+	if x+2*h < len(*field) {
+		if num = (*field)[x+2*h][y].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника выше и левее
+	if x-h >= 0 && y-(h+w) >= 0 {
+		if num = (*field)[x-h][y-(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже и левее
+	if x+h < len(*field) && y-(h+w) >= 0 {
+		if num = (*field)[x+h][y-(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника выше и правее
+	if x-h >= 0 && y+(h+w) < len((*field)[0]) {
+		if num = (*field)[x-h][y+(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+	// для шестиугольника ниже и правее
+	if x+h < len(*field) && y+(h+w) < len((*field)[0]) {
+		if num = (*field)[x+h][y+(h+w)].NamePeak; num != -1 {
+			peak.Link[num] = struct{}{}
+		}
+	}
+}
+
+// traversalGraphBFS обходит граф "в ширину" от стартовой вершины до конечной,
+// если такой путь есть, возвращает true, если пути нет - false
+func traversalGraphBFS(start, finish int, graph map[int]*Peak) bool {
+
+	// создаём новую очередь, используя пакет container/list
+	queue := list.New()
+	// добавляем стартовую вершину в наш чудо FIFO
+	queue.PushBack(graph[start])
+
+	// создаём мапу для сохранения информации о родительских вершинах
+	parent := make(map[int]int)
+	// у стартовой вершины родительских структур не предполагается поэтому проставляем номер несуществующей вершины -2
+	parent[start] = -2
+
+	// применяем алгоритм BFS
+	for queue.Len() > 0 {
+
+		// получаем указатель на текущую вершину
+		currentPeakPtr := queue.Front().Value.(*Peak)
+
+		// и удаляем первый элемент из очереди
+		queue.Remove(queue.Front())
+
+		currentPeak := *currentPeakPtr // разыменовываем указатель
+
+		if currentPeak.Name == finish {
+			// если мы встретили финишную вершину, значит, путь существует
+			return true
+		}
+		// итерируемся по мапе связей текущей вершины
+		for linked, _ := range currentPeak.Link {
+			// и если вершина в связи не посещённая (то есть её нет и в мапе родительских связей)
+			if _, ok := parent[linked]; !ok {
+				// добавляем в мапу родительских связей пару [номер вершины из связей]"номер текущей вершины"
+				parent[linked] = currentPeak.Name
+				// ставим текущую вершину в конец очереди queue
+				queue.PushBack(graph[linked])
+			}
+		}
+	}
+	// если мы не встретили финишную вершину, значит, такого пути не существует
+	return false
+}
+
 // outputing выводит результат
 func outputing(out *bufio.Writer, message string) {
 
 	fmt.Fprintf(out, "%s\n", message)
 }
 
-/*
-func outputing(out *bufio.Writer, graph map[int]*Peak, startPeak, finishPeak int) {
-
-	for _, peak := range graph {
-		fmt.Fprintf(out, "peak №%v link = %v\n", peak.Name, peak.Link)
-	}
-	fmt.Fprintf(out, "\n")
-
-}
-func outputingArr(out *bufio.Writer, arr [][]Dot) {
-
-		for i := 0; i < len(arr); i++ {
-			for j := 0; j < len(arr[i]); j++ {
-				if arr[i][j].NamePeak == -1 {
-					fmt.Fprintf(out, "#")
-				} else if arr[i][j].Symbol == " " {
-					fmt.Fprintf(out, "%v", arr[i][j].NamePeak)
-				} else {
-					fmt.Fprintf(out, "%v", arr[i][j].Symbol)
-				}
-			}
-			fmt.Fprint(out, "\n")
-		}
-		fmt.Fprint(out, "\n")
-	}
-*/
 func main() {
 
 	// определяем ввод
