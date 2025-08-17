@@ -125,6 +125,7 @@ package main
 
 import (
 	"bufio"
+	"container/list"
 	"fmt"
 	"log"
 	"os"
@@ -162,7 +163,7 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 	for group := 1; group <= groupCount; group++ {
 
 		// зададим итоговое сообщение
-		//	message := "NO"
+		message := "NO"
 
 		// считываем количество строк и столбцов
 		n, m := inpTwoInt(sc)
@@ -223,13 +224,71 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		}
 
 		// определяем стартовую и финишную вершины графа
-		startPeak := field[startX][startY].NamePeak
-		finishPeak := field[finishX][finishY].NamePeak
+		startPeak := field[startX-1][startY-1].NamePeak
+		finishPeak := field[finishX-1][finishY-1].NamePeak
 
-		// выводим поле по группе
-		outputing(out, graph, startPeak, finishPeak)
-		outputingArr(out, field)
+		if startPeak == finishPeak {
+			message = "YES"
+		} else if traversalGraphBFS(startPeak, finishPeak, graph) {
+			message = "YES"
+		}
+
+		//		fmt.Println("startPeak = ", startPeak, " finishPeak = ", finishPeak)
+		//		fmt.Println(message)
+		outputing(out, message)
+		/*
+			// выводим поле по группе
+			outputing(out, graph, startPeak, finishPeak)
+			outputingArr(out, field)
+		*/
 	}
+}
+
+// traversalGraphBFS обходит граф "в ширину" от стартовой вершины до конечной,
+// если такой путь есть, возвращает true, если пути нет - false
+func traversalGraphBFS(start, finish int, graph map[int]*Peak) bool {
+
+	// создаём новую очередь, используя пакет container/list
+	queue := list.New()
+	// добавляем стартовую вершину в наш чудо FIFO
+	queue.PushBack(graph[start])
+
+	// создаём мапу для сохранения информации о родительских вершинах
+	parent := make(map[int]int)
+	// у стартовой вершины родительских структур не предполагается поэтому проставляем номер несуществующей вершины -2
+	parent[start] = -2
+
+	// применяем алгоритм BFS
+	for queue.Len() > 0 {
+
+		// получаем указатель на текущую вершину
+		currentPeakPtr := queue.Front().Value.(*Peak)
+
+		// запоминаем первую вершину, currentPeak, очереди queue
+		//currentPeak := queue.Front().Value.(*Peak)
+
+		// и удаляем первый элемент из очереди
+		queue.Remove(queue.Front())
+
+		currentPeak := *currentPeakPtr // разыменовываем указатель
+
+		if currentPeak.Name == finish {
+			// если мы встретили финишную вершину, значит, путь существует
+			return true
+		}
+		// итерируемся по мапе связей текущей вершины
+		for linked, _ := range currentPeak.Link {
+			// и если вершина в связи не посещённая (то есть её нет и в мапе родительских связей)
+			if _, ok := parent[linked]; !ok {
+				// добавляем в мапу родительских связей пару [номер вершины из связей]"номер текущей вершины"
+				parent[linked] = currentPeak.Name
+				// ставим текущую вершину в конец очереди queue
+				queue.PushBack(graph[linked])
+			}
+		}
+	}
+	// если мы не встретили финишную вершину, значит, такого пути не существует
+	return false
 }
 
 // linkBuilder корректирует мапу связей вершины графа
@@ -425,15 +484,13 @@ func hexPrintEarth(h, w, x, y, numPeak int, field *[][]Dot) {
 	}
 }
 
-/*
 // outputing выводит результат
 func outputing(out *bufio.Writer, message string) {
 
-	fmt.Fprintf(out, "%s", message)
-
+	fmt.Fprintf(out, "%s\n", message)
 }
-*/
 
+/*
 func outputing(out *bufio.Writer, graph map[int]*Peak, startPeak, finishPeak int) {
 
 	for _, peak := range graph {
@@ -444,21 +501,21 @@ func outputing(out *bufio.Writer, graph map[int]*Peak, startPeak, finishPeak int
 }
 func outputingArr(out *bufio.Writer, arr [][]Dot) {
 
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr[i]); j++ {
-			if arr[i][j].NamePeak == -1 {
-				fmt.Fprintf(out, "#")
-			} else if arr[i][j].Symbol == " " {
-				fmt.Fprintf(out, "%v", arr[i][j].NamePeak)
-			} else {
-				fmt.Fprintf(out, "%v", arr[i][j].Symbol)
+		for i := 0; i < len(arr); i++ {
+			for j := 0; j < len(arr[i]); j++ {
+				if arr[i][j].NamePeak == -1 {
+					fmt.Fprintf(out, "#")
+				} else if arr[i][j].Symbol == " " {
+					fmt.Fprintf(out, "%v", arr[i][j].NamePeak)
+				} else {
+					fmt.Fprintf(out, "%v", arr[i][j].Symbol)
+				}
 			}
+			fmt.Fprint(out, "\n")
 		}
 		fmt.Fprint(out, "\n")
 	}
-	fmt.Fprint(out, "\n")
-}
-
+*/
 func main() {
 
 	// определяем ввод
