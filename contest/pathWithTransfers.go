@@ -133,9 +133,8 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"maps"
 	"os"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -154,6 +153,14 @@ type Peak struct {
 	x     int              // индекс строки условного начала шестиугольника
 	y     int              // индеск столбца условного начала шестиугольника
 	Mark  bool             // отметка о посещении вершины (шестиугольника)
+}
+
+// PathInfo используем при поиске пути от старта до финиша
+type PathInfo struct {
+	Current      *Peak  // текущая вершина
+	BadgeCount   int    // количество смен Badge
+	CurrentBadge string // текущий Badge
+	PathLength   int    // длина пути
 }
 
 // inputCalc объединяет логику работы с данными
@@ -203,7 +210,7 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		// попробуем ускорить работу программы
 		if startX == finishX && startY == finishY {
 			outputing(out, 0)
-			return
+			continue
 		}
 
 		// height полувысота шестиугольника, width длина основания шестиугольника
@@ -235,13 +242,12 @@ func inputCalc(sc *bufio.Scanner, out *bufio.Writer) {
 		// попробуем ускорить работу программы
 		if startPeak == finishPeak {
 			outputing(out, 0)
-			return
+			continue
 		}
 
-		//	outputingNumPeak(out, newField)
-		outputingGraph1(out, graph, &newField)
-		outputingGraph(out, graph)
-		//	outputingSymbol(out, newField)
+		message := pathWithMinTransfers(graph, startPeak, finishPeak)
+
+		outputing(out, message)
 	}
 }
 
@@ -486,119 +492,92 @@ func linkBuilder(h, w int, field *[][]Dot, peak *Peak) {
 	}
 }
 
-// для теста
-func hexPrint(h, w, x, y, numPeak int, newField *[][]Dot) {
+// pathWithMinTransfers определяет количество смен Badge при проходе от старта до финиша
+func pathWithMinTransfers(graph map[int]*Peak, start, finish int) int {
 
-	prefix := 0
-	// идём по крышке
-	for i := x - 1; i >= x-h-1; i-- {
-		for j := y; j <= y+2*h+w-1; j++ {
-			if i >= 0 && i < len(*newField) && j >= 0 && j < len((*newField)[0]) {
-				if i != x-h-1 && j == y+prefix {
-					(*newField)[i][j].Symbol = "/"
+	// queue очередь для BFS (будем сортировать её по BadgeCount)
+	queue := make([]PathInfo, 0)
+
+	// minBadgeChanges мапа для хранения минимальных переключений Badge для каждой вершины
+	minBadgeChanges := make(map[int]int)
+
+	// в visited храним посещенные вершины с конкретным Badge
+	visited := make(map[int]map[string]bool)
+
+	// определим начальную вершину
+	beginPeak := PathInfo{
+		Current:      graph[start],
+		BadgeCount:   0,
+		CurrentBadge: graph[start].Badge,
+		PathLength:   0,
+	}
+
+	// добавим вершину в конец очереди и отметим посещение
+	queue = append(queue, beginPeak)
+	visited[start] = make(map[string]bool)
+	visited[start][graph[start].Badge] = true
+	minBadgeChanges[start] = 0
+
+	for len(queue) > 0 {
+
+		// сортируем очередь по количеству переключений Badge
+		sort.Slice(queue, func(i, j int) bool {
+			return queue[i].BadgeCount < queue[j].BadgeCount
+		})
+
+		// извлекаем первую вершину из очереди
+		currentInfo := queue[0]
+		queue = queue[1:]
+
+		// проверяем, достигли ли мы финиша
+		if currentInfo.Current.Name == finish {
+			return currentInfo.BadgeCount
+		}
+
+		// итерируемся по соседям
+		for linked := range currentInfo.Current.Link {
+			neighbor := graph[linked]
+
+			// проверяем, не были ли мы уже в этой вершине с таким же Badge
+			if visited[linked] == nil {
+				visited[linked] = make(map[string]bool)
+			}
+			if visited[linked][currentInfo.CurrentBadge] {
+				continue
+			}
+
+			// вычисляем новое количество смен Badge
+			newBadgeCount := currentInfo.BadgeCount
+			newCurrentBadge := currentInfo.CurrentBadge
+
+			if neighbor.Badge != currentInfo.CurrentBadge {
+				newBadgeCount++
+				newCurrentBadge = neighbor.Badge
+			}
+
+			// проверяем, не нашли ли мы путь с меньшим количеством переключений Badge
+			if minBadgeChanges[linked] == 0 ||
+				(newBadgeCount < minBadgeChanges[linked]) ||
+				(newBadgeCount == minBadgeChanges[linked] &&
+					currentInfo.PathLength+1 < minBadgeChanges[linked]) {
+
+				minBadgeChanges[linked] = newBadgeCount
+				visited[linked][newCurrentBadge] = true
+
+				newInfo := PathInfo{
+					Current:      neighbor,
+					BadgeCount:   newBadgeCount,
+					CurrentBadge: newCurrentBadge,
+					PathLength:   currentInfo.PathLength + 1,
 				}
-				if i != x-h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = " "
-				}
-				if i != x-h-1 && j == y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = "\\"
-				}
-				if i == x-h-1 && y+prefix <= j && j <= y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = "_"
-				}
+				queue = append(queue, newInfo)
 			}
 		}
-		prefix++
 	}
-	// идём по донышку
-	prefix = 0
-	for i := x; i <= x+h-1; i++ {
-		for j := y; j <= y+2*h+w-1; j++ {
-			if i >= 0 && i < len(*newField) && j >= 0 && j < len((*newField)[0]) {
-				if j == y+prefix {
-					(*newField)[i][j].Symbol = "\\"
-				}
-				if i != x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = " "
-				}
-				if j == y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = "/"
-				}
-				if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
-					(*newField)[i][j].Symbol = "_"
-				}
-			}
-		}
-		prefix++
-	}
+
+	// если путь не найден
+	return -1
 }
-
-func outputingGraph(out *bufio.Writer, graph map[int]*Peak) {
-
-	keys := slices.Sorted(maps.Keys(graph))
-
-	for _, val := range keys {
-		fmt.Fprintf(out, "У вершины %v связи: %v\n", graph[val].Name, graph[val].Link)
-	}
-	fmt.Fprint(out, "\n")
-}
-
-func outputingGraph1(out *bufio.Writer, graph map[int]*Peak, newField *[][]Dot) {
-
-	arr := make([][]string, len(*newField), len(*newField))
-	for i := 0; i < len(arr); i++ {
-		arr[i] = make([]string, len((*newField)[0]))
-		for j := 0; j < len(arr[i]); j++ {
-			if (*newField)[i][j].Symbol == " " {
-				arr[i][j] = "   "
-			} else {
-				arr[i][j] = " " + (*newField)[i][j].Symbol
-			}
-		}
-	}
-
-	keys := slices.Sorted(maps.Keys(graph))
-
-	for _, val := range keys {
-
-		arr[graph[val].x][graph[val].y] = strconv.Itoa(graph[val].Name)
-	}
-
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr[i]); j++ {
-			fmt.Fprintf(out, "%v", arr[i][j])
-		}
-		fmt.Fprint(out, "\n")
-	}
-	fmt.Fprint(out, "\n")
-
-	fmt.Fprint(out, "\n")
-}
-
-/*
-func outputingNumPeak(out *bufio.Writer, arr [][]Dot) {
-
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr[i]); j++ {
-			fmt.Fprintf(out, "%v", arr[i][j].NamePeak)
-		}
-		fmt.Fprint(out, "\n")
-	}
-	fmt.Fprint(out, "\n")
-}
-*/
-/*
-func outputingSymbol(out *bufio.Writer, arr [][]Dot) {
-
-		for i := 0; i < len(arr); i++ {
-			for j := 0; j < len(arr[i]); j++ {
-				fmt.Fprintf(out, "%v", arr[i][j].Symbol)
-			}
-			fmt.Fprint(out, "\n")
-		}
-		fmt.Fprint(out, "\n")
-	}
-*/
 
 // outputing выводит результат
 func outputing(out *bufio.Writer, message int) {
