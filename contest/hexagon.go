@@ -54,92 +54,96 @@ import (
 	"strings"
 )
 
-// inputing считывает данные по шестиугольнику
-func inputing(sc *bufio.Scanner) (int, int) {
+// inpTwoInt считывает строку, в которой вводятся два числа int
+func inpTwoInt(sc *bufio.Scanner) (int, int) {
 
+	// считываем строку с будем надеяться двумя числами
 	sc.Scan()
-	nm := strings.Split(sc.Text(), " ")
-
-	// основание шестиугольника
-	width, err := strconv.Atoi(nm[0])
-	// полувысота шестиугольника
-	height, err := strconv.Atoi(nm[1])
+	aWithb := strings.Split(sc.Text(), " ")
+	a, err := strconv.Atoi(aWithb[0])
+	b, err := strconv.Atoi(aWithb[1])
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return width, height
+	return a, b
 }
 
-// hexagonCompletion формирует массив с шестиугольником
-func hexagonCompletion(n, m, height int) [][]string {
+// fieldInit инициализирует массив
+func fieldInit(h, w int) [][]string {
 
-	// field это массив для хранения символов, из которых состоит шестиугольник
-	field := make([][]string, n, n)
+	field := make([][]string, 2*h+1, 2*h+1)
 
-	prefix := height + 1
-
-	for i := 0; i < n; i++ {
-		field[i] = make([]string, m, m)
-		if i <= n/2 {
-			prefix--
-		}
-		if i > n/2 {
-			prefix++
-		}
-		for j := 0; j < m; j++ {
-			if i == 0 && j < prefix {
-				field[i][j] = ` `
-			}
-			if i == 0 && prefix <= j && j <= m-1-prefix {
-				field[i][j] = `_`
-			}
-			if i > 0 && i <= n/2 {
-				if j < prefix {
-					field[i][j] = ` `
-				}
-				if j == prefix {
-					field[i][j] = `/`
-				}
-				if prefix < j && j < m-1-prefix {
-					field[i][j] = ` `
-				}
-				if j == m-1-prefix {
-					field[i][j] = `\`
-				}
-			}
-			if i > n/2 {
-				if j < prefix-1 {
-					field[i][j] = ` `
-				}
-				if j == prefix-1 {
-					field[i][j] = `\`
-				}
-				if prefix-1 < j && j < m-prefix {
-					field[i][j] = ` `
-				}
-				if j == m-prefix {
-					field[i][j] = `/`
-				}
-				if i == len(field)-1 && j < prefix-1 {
-					field[i][j] = ` `
-				}
-				if i == len(field)-1 && prefix-1 < j && j < m-prefix {
-					field[i][j] = `_`
-				}
-			}
+	for i := 0; i < len(field); i++ {
+		field[i] = make([]string, 2*h+w, 2*h+w)
+		for j := 0; j < len(field[i]); j++ {
+			field[i][j] = " "
 		}
 	}
 
 	return field
 }
 
-// outputing выводит результат
-func outputing(out *bufio.Writer, arr [][]string, n, m int) {
+// hexagonCompletion рисует шестиугольник в массиве
+func hexagonCompletion(h, w int, field *[][]string) {
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < m; j++ {
-			fmt.Fprintf(out, "%s", arr[i][j])
+	// определим условное начало шестиугольника
+	x := h + 1
+	y := 0
+
+	prefix := 0 // смещение для отрисовки
+
+	// идём по крышке
+	for i := x - 1; i >= x-h-1; i-- {
+		for j := y; j <= y+2*h+w-1; j++ {
+			if i >= 0 && i < len(*field) && j >= 0 && j < len((*field)[0]) {
+				if i != x-h-1 && j == y+prefix {
+					(*field)[i][j] = "/"
+				}
+				if i != x-h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+					(*field)[i][j] = " "
+				}
+				if i != x-h-1 && j == y+2*h+w-1-prefix {
+					(*field)[i][j] = "\\"
+				}
+				if i == x-h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+					(*field)[i][j] = "_"
+				}
+			}
+		}
+		prefix++
+	}
+
+	prefix = 0
+
+	// идём по донышку
+	for i := x; i <= x+h-1; i++ {
+		for j := y; j <= y+2*h+w-1; j++ {
+			if i >= 0 && i < len(*field) && j >= 0 && j < len((*field)[0]) {
+				if j == y+prefix {
+					(*field)[i][j] = "\\"
+				}
+				if i != x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+					(*field)[i][j] = " "
+				}
+				if j == y+2*h+w-1-prefix {
+					(*field)[i][j] = "/"
+				}
+				if i == x+h-1 && y+prefix < j && j < y+2*h+w-1-prefix {
+					(*field)[i][j] = "_"
+				}
+			}
+		}
+		prefix++
+	}
+}
+
+// outputing выводит результат
+func outputing(out *bufio.Writer, arr *[][]string) {
+
+	for i := 0; i < len(*arr); i++ {
+		for j := 0; j < len((*arr)[i]); j++ {
+			fmt.Fprintf(out, "%v", (*arr)[i][j])
 		}
 		fmt.Fprint(out, "\n")
 	}
@@ -163,18 +167,15 @@ func main() {
 	// считываем данные по группам
 	for h := 0; h < countHex; h++ {
 
-		// определяем параметры текущего шестиугольника
-		width, height := inputing(scanner)
+		// определяем основание width и полувысоту height текущего шестиугольника
+		width, height := inpTwoInt(scanner)
 
-		// высота поля под шестиугольник
-		n := 2*height + 1
-		// длина поля под шестиугольник
-		m := width + 2*height
+		// field это массив для хранения символов, из которых состоит шестиугольник
+		field := fieldInit(height, width)
 
-		// определяем массив с шестиугольником
-		field := hexagonCompletion(n, m, height)
+		hexagonCompletion(height, width, &field)
 
 		// выводим результат по группе
-		outputing(out, field, n, m)
+		outputing(out, &field)
 	}
 }
